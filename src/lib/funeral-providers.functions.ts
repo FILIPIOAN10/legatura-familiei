@@ -34,7 +34,7 @@ export const searchFuneralProviders = createServerFn({ method: "POST" })
         "X-Connection-Api-Key": GOOGLE_MAPS_API_KEY,
         "Content-Type": "application/json",
         "X-Goog-FieldMask":
-          "places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.internationalPhoneNumber,places.rating,places.userRatingCount,places.priceLevel,places.googleMapsUri,places.websiteUri",
+          "places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.internationalPhoneNumber,places.rating,places.userRatingCount,places.priceLevel,places.googleMapsUri,places.websiteUri,places.location",
       },
       body: JSON.stringify({
         textQuery: `pompe funebre ${data.city}`,
