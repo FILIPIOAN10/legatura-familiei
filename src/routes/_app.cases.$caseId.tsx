@@ -158,6 +158,21 @@ function ActionPanel({ caseData }: { caseData: any }) {
     );
   }
 
+  if ((role === "family" || role === "civil_officer") && caseData.status === "DEATH_CERT_ISSUED" && isClujNapoca(caseData.city, caseData.county)) {
+    return <FuneralProviderPicker certNumber={caseData.certificate_number} city={caseData.city} />;
+  }
+
+  if (role === "family" && caseData.status === "DEATH_CERT_ISSUED") {
+    return (
+      <div className="rounded-xl border border-border bg-card p-6">
+        <h2 className="mb-2 font-display text-lg font-semibold">Alegeți o casă funerară</h2>
+        <p className="text-sm text-muted-foreground">
+          Certificatul de deces a fost emis. Contactați o casă funerară direct.
+        </p>
+      </div>
+    );
+  }
+
   if (role === "funeral_provider" && (caseData.status === "DEATH_CERT_ISSUED" || caseData.status === "FUNERAL_SCHEDULED")) {
     return <FuneralPanel caseData={caseData} onScheduled={invalidate} onCompleted={invalidate} />;
   }
@@ -195,34 +210,6 @@ function ActionPanel({ caseData }: { caseData: any }) {
         </p>
       </div>
     );
-}
-
-function ArchiveButton({ caseId, onDone }: { caseId: string; onDone: () => void }) {
-  const m = useMutation({
-    mutationFn: archiveCase,
-    onSuccess: () => { toast.success("Dosar arhivat oficial."); onDone(); },
-    onError: (e: any) => toast.error(e?.detail ?? e.message),
-  });
-  return (
-    <Button onClick={() => m.mutate({ case_id: caseId })} disabled={m.isPending} className="mt-4 bg-brand-navy hover:bg-brand-navy/90">
-      {m.isPending ? "Se arhivează..." : "Arhivează dosarul"}
-    </Button>
-  );
-}
-
-  if (role === "family" && caseData.status === "DEATH_CERT_ISSUED" && isClujNapoca(caseData.city, caseData.county)) {
-    return <FuneralProviderPicker certNumber={caseData.certificate_number} city={caseData.city} />;
-  }
-
-  if (role === "family" && caseData.status === "DEATH_CERT_ISSUED") {
-    return (
-      <div className="rounded-xl border border-border bg-card p-6">
-        <h2 className="mb-2 font-display text-lg font-semibold">Alegeți o casă funerară</h2>
-        <p className="text-sm text-muted-foreground">
-          Certificatul de deces a fost emis. Contactați o casă funerară direct.
-        </p>
-      </div>
-    );
   }
 
   return (
@@ -239,6 +226,19 @@ function ArchiveButton({ caseId, onDone }: { caseId: string; onDone: () => void 
         {role === "family" && caseData.status === "SUCCESSION_CLOSED" && " Procedura succesorală este finalizată."}
       </p>
     </div>
+  );
+}
+
+function ArchiveButton({ caseId, onDone }: { caseId: string; onDone: () => void }) {
+  const m = useMutation({
+    mutationFn: archiveCase,
+    onSuccess: () => { toast.success("Dosar arhivat oficial."); onDone(); },
+    onError: (e: any) => toast.error(e?.detail ?? e.message),
+  });
+  return (
+    <Button onClick={() => m.mutate({ case_id: caseId })} disabled={m.isPending} className="mt-4 bg-brand-navy hover:bg-brand-navy/90">
+      {m.isPending ? "Se arhivează..." : "Arhivează dosarul"}
+    </Button>
   );
 }
 
