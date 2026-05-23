@@ -13,6 +13,7 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthSignupRouteImport } from './routes/auth.signup'
+import { Route as AuthResetPasswordRouteImport } from './routes/auth.reset-password'
 import { Route as AuthLoginRouteImport } from './routes/auth.login'
 import { Route as AppSeedRouteImport } from './routes/_app.seed'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
@@ -40,6 +41,11 @@ const IndexRoute = IndexRouteImport.update({
 const AuthSignupRoute = AuthSignupRouteImport.update({
   id: '/auth/signup',
   path: '/auth/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
+  id: '/auth/reset-password',
+  path: '/auth/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthLoginRoute = AuthLoginRouteImport.update({
@@ -98,6 +104,7 @@ export interface FileRoutesByFullPath {
   '/notifications': typeof AppNotificationsRoute
   '/seed': typeof AppSeedRoute
   '/auth/login': typeof AuthLoginRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/signup': typeof AuthSignupRoute
   '/cases/$caseId': typeof AppCasesCaseIdRoute
   '/cases/new': typeof AppCasesNewRoute
@@ -112,6 +119,7 @@ export interface FileRoutesByTo {
   '/notifications': typeof AppNotificationsRoute
   '/seed': typeof AppSeedRoute
   '/auth/login': typeof AuthLoginRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/signup': typeof AuthSignupRoute
   '/cases/$caseId': typeof AppCasesCaseIdRoute
   '/cases/new': typeof AppCasesNewRoute
@@ -128,6 +136,7 @@ export interface FileRoutesById {
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/seed': typeof AppSeedRoute
   '/auth/login': typeof AuthLoginRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/signup': typeof AuthSignupRoute
   '/_app/cases/$caseId': typeof AppCasesCaseIdRoute
   '/_app/cases/new': typeof AppCasesNewRoute
@@ -144,6 +153,7 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/seed'
     | '/auth/login'
+    | '/auth/reset-password'
     | '/auth/signup'
     | '/cases/$caseId'
     | '/cases/new'
@@ -158,6 +168,7 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/seed'
     | '/auth/login'
+    | '/auth/reset-password'
     | '/auth/signup'
     | '/cases/$caseId'
     | '/cases/new'
@@ -173,6 +184,7 @@ export interface FileRouteTypes {
     | '/_app/notifications'
     | '/_app/seed'
     | '/auth/login'
+    | '/auth/reset-password'
     | '/auth/signup'
     | '/_app/cases/$caseId'
     | '/_app/cases/new'
@@ -183,6 +195,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   AuthLoginRoute: typeof AuthLoginRoute
+  AuthResetPasswordRoute: typeof AuthResetPasswordRoute
   AuthSignupRoute: typeof AuthSignupRoute
 }
 
@@ -214,6 +227,13 @@ declare module '@tanstack/react-router' {
       path: '/auth/signup'
       fullPath: '/auth/signup'
       preLoaderRoute: typeof AuthSignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/reset-password': {
+      id: '/auth/reset-password'
+      path: '/auth/reset-password'
+      fullPath: '/auth/reset-password'
+      preLoaderRoute: typeof AuthResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/login': {
@@ -321,8 +341,19 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   AuthLoginRoute: AuthLoginRoute,
+  AuthResetPasswordRoute: AuthResetPasswordRoute,
   AuthSignupRoute: AuthSignupRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
