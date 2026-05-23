@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { CASE_STATUS_LABELS, DOC_TYPE_LABELS } from "@/lib/legal";
 import { formatDateTimeRo } from "@/lib/format";
 import { toast } from "sonner";
-import { FileText, Stethoscope, Building2, Upload, Download, Phone, Star, MapPin, Check } from "lucide-react";
+import { FileText, Stethoscope, Building2, Upload, Download, Phone, Star, MapPin } from "lucide-react";
 import { FUNERAL_PROVIDERS } from "@/lib/funeral-providers";
 
 
@@ -348,11 +348,11 @@ function FuneralProviderPicker({ certNumber, status }: { certNumber?: string; st
                 <Button
                   size="sm"
                   variant="outline"
-                  className="gap-2 border-brand-navy text-brand-navy hover:bg-brand-navy/5"
-                  onClick={() => toast.success(`Ați ales ${p.name}. Casa funerară va fi notificată.`)}
-                  aria-label={`Alege ${p.name}`}
+                  className="border-brand-navy text-brand-navy hover:bg-brand-navy/5"
+                  onClick={() => toast.success("Ați ales " + p.name + ". Casa funerară va fi notificată.")}
+                  aria-label={"Alege " + p.name}
                 >
-                  <Check className="size-4" /> Alege
+                  Alege
                 </Button>
               </div>
             </li>
