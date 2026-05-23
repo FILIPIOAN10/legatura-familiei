@@ -28,6 +28,8 @@ public record CaseDetail(
         @JsonProperty("certificate_number") String certificateNumber,
         @JsonProperty("cert_issued_at") Instant certIssuedAt,
         Funeral funeral,
+        @JsonProperty("documents_submitted_at") Instant documentsSubmittedAt,
+        @JsonProperty("selected_provider") SelectedProvider selectedProvider,
         List<AuditEntryDto> audit
 ) {
     public static CaseDetail from(CaseEntity c) {
@@ -41,6 +43,12 @@ public record CaseDetail(
                 c.getFuneralDate(),
                 c.getFuneralLocation(),
                 c.getFuneralCompletedAt()
+        );
+        SelectedProvider selectedProvider = c.getSelectedProviderId() == null ? null : new SelectedProvider(
+                c.getSelectedProviderId(),
+                c.getSelectedProviderName(),
+                c.getSelectedProviderPhone(),
+                c.getSelectedProviderAt()
         );
         return new CaseDetail(
                 c.getId(),
@@ -60,6 +68,8 @@ public record CaseDetail(
                 c.getCertificateNumber(),
                 c.getCertIssuedAt(),
                 funeral,
+                c.getDocumentsSubmittedAt(),
+                selectedProvider,
                 c.getAudit().stream().map(AuditEntryDto::from).toList()
         );
     }
@@ -75,6 +85,13 @@ public record CaseDetail(
             Instant date,
             String location,
             @JsonProperty("completed_at") Instant completedAt
+    ) {}
+
+    public record SelectedProvider(
+            String id,
+            String name,
+            String phone,
+            @JsonProperty("selected_at") Instant selectedAt
     ) {}
 
     public record AuditEntryDto(

@@ -17,6 +17,8 @@ import ro.exitusro.backend.cases.dto.CreateCaseRequest;
 import ro.exitusro.backend.cases.dto.IssueCmcdRequest;
 import ro.exitusro.backend.cases.dto.RequestCorrectionsRequest;
 import ro.exitusro.backend.cases.dto.ScheduleFuneralRequest;
+import ro.exitusro.backend.cases.dto.SelectFuneralProviderRequest;
+import ro.exitusro.backend.cases.dto.SubmitDocumentsRequest;
 import ro.exitusro.backend.documents.DocumentRepository;
 import ro.exitusro.backend.documents.dto.DocumentSummary;
 import ro.exitusro.backend.security.CurrentUser;
@@ -76,6 +78,26 @@ public class CaseController {
                                           @CurrentUser UserAccount user) {
         service.issueCmcd(id, req, user);
         return Map.of("ok", true);
+    }
+
+    @PostMapping("/{id}/submit-documents")
+    public Map<String, Object> submitDocuments(@PathVariable String id,
+                                               @Valid @RequestBody SubmitDocumentsRequest req,
+                                               @CurrentUser UserAccount user) {
+        CaseEntity c = service.submitFamilyDocuments(id, req, user);
+        return Map.of("ok", true, "status", c.getStatus().name());
+    }
+
+    @PostMapping("/{id}/select-funeral-provider")
+    public Map<String, Object> selectFuneralProvider(@PathVariable String id,
+                                                     @Valid @RequestBody SelectFuneralProviderRequest req,
+                                                     @CurrentUser UserAccount user) {
+        CaseEntity c = service.selectFuneralProvider(id, req, user);
+        return Map.of(
+                "ok", true,
+                "provider_id", c.getSelectedProviderId(),
+                "provider_name", c.getSelectedProviderName()
+        );
     }
 
     @PostMapping("/{id}/death-certificate")
