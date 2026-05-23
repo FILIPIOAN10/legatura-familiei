@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
-import { getCase, issueCmcd, validateAndIssueDeathCert, requestCorrections, scheduleFuneral, completeFuneral, openSuccession, closeSuccession } from "@/lib/cases.functions";
+import { getCase, issueCmcd, validateAndIssueDeathCert, requestCorrections, scheduleFuneral, completeFuneral, openSuccession, closeSuccession, archiveCase } from "@/lib/cases.functions";
 import { uploadDocument, getDocumentDownloadUrl } from "@/lib/documents.functions";
 import { CaseStepper } from "@/components/case-stepper";
 import { DeadlineCard } from "@/components/deadline-card";
@@ -167,11 +167,40 @@ function ActionPanel({ caseData }: { caseData: any }) {
         </div>
         <p className="text-sm text-muted-foreground">
           Toate etapele legale au fost parcurse. Certificatul de moștenitor a fost emis și succesiunea este închisă.
-          Documentele rămân disponibile în seif pentru consultare.
+          {role === "civil_officer" ? " Puteți arhiva oficial dosarul." : " Dosarul așteaptă arhivare oficială de către Starea Civilă."}
         </p>
+        {role === "civil_officer" && <ArchiveButton caseId={caseData.id} onDone={invalidate} />}
       </div>
     );
   }
+
+  if (caseData.status === "ARCHIVED") {
+    return (
+      <div className="rounded-xl border border-border bg-muted/30 p-6">
+        <div className="mb-2 flex items-center gap-2">
+          <span className="flex size-7 items-center justify-center rounded-full bg-brand-navy text-white">🗄</span>
+          <h2 className="font-display text-lg font-semibold text-brand-navy">Dosar arhivat</h2>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Dosarul a fost arhivat oficial de Starea Civilă{caseData.archived_at ? ` la ${formatDateTimeRo(caseData.archived_at)}` : ""}.
+          Documentele rămân disponibile pentru consultare.
+        </p>
+      </div>
+    );
+}
+
+function ArchiveButton({ caseId, onDone }: { caseId: string; onDone: () => void }) {
+  const m = useMutation({
+    mutationFn: archiveCase,
+    onSuccess: () => { toast.success("Dosar arhivat oficial."); onDone(); },
+    onError: (e: any) => toast.error(e?.detail ?? e.message),
+  });
+  return (
+    <Button onClick={() => m.mutate({ case_id: caseId })} disabled={m.isPending} className="mt-4 bg-brand-navy hover:bg-brand-navy/90">
+      {m.isPending ? "Se arhivează..." : "Arhivează dosarul"}
+    </Button>
+  );
+}
 
   return (
     <div className="rounded-xl border border-border bg-card p-6">
