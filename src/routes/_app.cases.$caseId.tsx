@@ -16,8 +16,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { CASE_STATUS_LABELS, DOC_TYPE_LABELS } from "@/lib/legal";
 import { formatDateTimeRo, maskCnp } from "@/lib/format";
 import { toast } from "sonner";
-import { FileText, Stethoscope, Building2, Upload, Download, Phone, Star } from "lucide-react";
-import { getProvidersSortedByPrice } from "@/lib/funeral-providers";
+import { FileText, Stethoscope, Building2, Upload, Download, Phone, Star, MapPin, ExternalLink } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { searchFuneralProviders } from "@/lib/funeral-providers.functions";
 
 export const Route = createFileRoute("/_app/cases/$caseId")({ component: CaseDetail });
 
@@ -361,7 +362,14 @@ function CorrectionsDialog({ onSubmit }: { onSubmit: (reason: string) => void })
 }
 
 function FuneralProviderPicker({ certNumber, city }: { certNumber?: string; city?: string }) {
-  const providers = getProvidersSortedByPrice().filter((p) => !city || p.city === city);
+  const search = useServerFn(searchFuneralProviders);
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ["funeral-providers", city ?? ""],
+    queryFn: () => search({ data: { city: city ?? "" } }),
+    enabled: !!city,
+    staleTime: 5 * 60 * 1000,
+  });
+  const providers = data?.providers ?? [];
   return (
     <div className="rounded-xl border-2 border-brand-sage bg-brand-sage/5 p-6">
       <div className="mb-2 flex items-center gap-2">
@@ -370,40 +378,68 @@ function FuneralProviderPicker({ certNumber, city }: { certNumber?: string; city
       </div>
       <p className="mb-5 text-sm text-muted-foreground">
         Certificatul de deces {certNumber ? <span className="font-mono">{certNumber}</span> : ""} a fost emis.
-        {providers.length > 0
-          ? " Mai jos găsiți firmele de pompe funebre din oraș, sortate după preț (cel mai mic întâi). Contactați direct casa aleasă."
-          : ` Momentan nu avem furnizori înregistrați în ${city ?? "acest oraș"}.`}
+        {city
+          ? ` Mai jos găsiți case funerare din ${city}, preluate live de pe Google Maps și sortate după nivelul de preț (cel mai accesibil întâi).`
+          : " Orașul decesului nu este completat în dosar."}
       </p>
+      {isLoading && <p className="text-sm text-muted-foreground">Se caută furnizori pe Google Maps…</p>}
+      {isError && (
+        <div className="flex items-center gap-3 text-sm">
+          <span className="text-destructive">Nu am putut prelua lista de furnizori.</span>
+          <Button size="sm" variant="outline" onClick={() => refetch()}>Reîncearcă</Button>
+        </div>
+      )}
+      {!isLoading && !isError && providers.length === 0 && city && (
+        <p className="text-sm text-muted-foreground">Nu am găsit case funerare pentru „{city}” pe Google Maps.</p>
+      )}
       {providers.length > 0 && (
         <ul className="space-y-3">
           {providers.map((p, i) => (
             <li key={p.id} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   {i === 0 && <Badge className="bg-brand-sage text-white">Cel mai accesibil</Badge>}
                   <p className="truncate font-medium text-foreground">{p.name}</p>
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {p.city} • <Star className="inline size-3 -mt-0.5 fill-current text-amber-500" /> {p.rating.toFixed(1)} • {p.notes}
+                <p className="mt-1 text-xs text-muted-foreground flex items-center gap-1 flex-wrap">
+                  <MapPin className="size-3" /> {p.address}
+                  {typeof p.rating === "number" && (
+                    <>
+                      {" • "}
+                      <Star className="inline size-3 -mt-0.5 fill-current text-amber-500" />
+                      {" "}{p.rating.toFixed(1)}{p.userRatingCount ? ` (${p.userRatingCount})` : ""}
+                    </>
+                  )}
                 </p>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 flex-wrap">
                 <div className="text-right">
-                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">de la</p>
-                  <p className="font-display text-lg font-semibold text-brand-navy">{p.priceFrom.toLocaleString("ro-RO")} RON</p>
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">nivel preț</p>
+                  <p className="font-display text-base font-semibold text-brand-navy">
+                    {typeof p.priceLevel === "number" ? "€".repeat(Math.max(1, p.priceLevel)) : "—"}
+                  </p>
                 </div>
-                <Button asChild size="sm" className="gap-2 bg-brand-navy hover:bg-brand-navy/90">
-                  <a href={`tel:${p.phone.replace(/\s+/g, "")}`} aria-label={`Sună ${p.name}`}>
-                    <Phone className="size-4" /> {p.phone}
-                  </a>
-                </Button>
+                {p.phone && (
+                  <Button asChild size="sm" className="gap-2 bg-brand-navy hover:bg-brand-navy/90">
+                    <a href={`tel:${p.phone.replace(/\s+/g, "")}`} aria-label={`Sună ${p.name}`}>
+                      <Phone className="size-4" /> {p.phone}
+                    </a>
+                  </Button>
+                )}
+                {p.mapsUri && (
+                  <Button asChild size="sm" variant="outline" className="gap-2">
+                    <a href={p.mapsUri} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="size-4" /> Maps
+                    </a>
+                  </Button>
+                )}
               </div>
             </li>
           ))}
         </ul>
       )}
       <p className="mt-4 text-xs text-muted-foreground">
-        Prețurile sunt orientative pentru pachetul de bază și pot varia în funcție de servicii. Casa funerară va programa apoi ceremonia în acest dosar.
+        Rezultate live de pe Google Maps. Google nu publică prețuri exacte; nivelul (€/€€/€€€) este orientativ. Confirmați costurile direct cu casa funerară.
       </p>
     </div>
   );
