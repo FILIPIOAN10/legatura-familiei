@@ -360,6 +360,50 @@ function CorrectionsDialog({ onSubmit }: { onSubmit: (reason: string) => void })
   );
 }
 
+function FuneralProviderPicker({ certNumber }: { certNumber?: string }) {
+  const providers = getProvidersSortedByPrice();
+  return (
+    <div className="rounded-xl border-2 border-brand-sage bg-brand-sage/5 p-6">
+      <div className="mb-2 flex items-center gap-2">
+        <Building2 className="size-5 text-brand-navy" />
+        <h2 className="font-display text-lg font-semibold text-brand-navy">Alegeți o casă funerară</h2>
+      </div>
+      <p className="mb-5 text-sm text-muted-foreground">
+        Certificatul de deces {certNumber ? <span className="font-mono">{certNumber}</span> : ""} a fost emis. Mai jos găsiți firmele de pompe funebre disponibile, sortate după preț (cel mai mic întâi). Contactați direct casa aleasă.
+      </p>
+      <ul className="space-y-3">
+        {providers.map((p, i) => (
+          <li key={p.id} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                {i === 0 && <Badge className="bg-brand-sage text-white">Cel mai accesibil</Badge>}
+                <p className="truncate font-medium text-foreground">{p.name}</p>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {p.city} • <Star className="inline size-3 -mt-0.5 fill-current text-amber-500" /> {p.rating.toFixed(1)} • {p.notes}
+              </p>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">de la</p>
+                <p className="font-display text-lg font-semibold text-brand-navy">{p.priceFrom.toLocaleString("ro-RO")} RON</p>
+              </div>
+              <Button asChild size="sm" className="gap-2 bg-brand-navy hover:bg-brand-navy/90">
+                <a href={`tel:${p.phone.replace(/\s+/g, "")}`} aria-label={`Sună ${p.name}`}>
+                  <Phone className="size-4" /> {p.phone}
+                </a>
+              </Button>
+            </div>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-4 text-xs text-muted-foreground">
+        Prețurile sunt orientative pentru pachetul de bază și pot varia în funcție de servicii. Casa funerară va programa apoi ceremonia în acest dosar.
+      </p>
+    </div>
+  );
+}
+
 function DocumentVault({ docs, caseId }: { docs: any[]; caseId: string }) {
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
