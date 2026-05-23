@@ -209,12 +209,94 @@ function CorrectionsDialog({ onSubmit }: { onSubmit: (reason: string) => void })
   );
 }
 
-function DocumentVault({ docs }: { docs: any[] }) {
+function DocumentVault({ docs, caseId }: { docs: any[]; caseId: string }) {
+  const qc = useQueryClient();
+  const registerFn = useServerFn(registerUploadedDocument);
+  const downloadFn = useServerFn(getDocumentDownloadUrl);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [docType, setDocType] = useState<"id_card" | "birth_certificate" | "marriage_certificate" | "other">("other");
+  const [title, setTitle] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const handleUpload = async () => {
+    const file = fileRef.current?.files?.[0];
+    if (!file) return toast.error("Selectați un fișier.");
+    if (!title.trim()) return toast.error("Adăugați un titlu.");
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop() ?? "bin";
+      const path = `${caseId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("case-documents").upload(path, file, {
+        contentType: file.type || "application/octet-stream",
+      });
+      if (upErr) throw upErr;
+      await registerFn({ data: { case_id: caseId, type: docType, title: title.trim(), storage_path: path } });
+      toast.success("Document încărcat.");
+      setOpen(false);
+      setTitle("");
+      if (fileRef.current) fileRef.current.value = "";
+      qc.invalidateQueries({ queryKey: ["case", caseId] });
+    } catch (e: any) {
+      toast.error(e.message ?? "Eroare la încărcare");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDownload = async (id: string) => {
+    try {
+      const res = await downloadFn({ data: { document_id: id } });
+      window.open(res.url, "_blank");
+    } catch (e: any) {
+      toast.error(e.message ?? "Eroare la descărcare");
+    }
+  };
+
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
       <div className="flex items-center justify-between border-b border-border bg-muted/30 px-6 py-4">
         <h2 className="font-display text-sm font-semibold">Seiful cu documente</h2>
-        <span className="text-xs text-muted-foreground">{docs.length} documente</span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground">{docs.length} documente</span>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" variant="outline" className="gap-2">
+                <Upload className="size-4" /> Încarcă
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Încarcă document</DialogTitle></DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label>Tip document</Label>
+                  <Select value={docType} onValueChange={(v) => setDocType(v as any)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="id_card">Carte de identitate</SelectItem>
+                      <SelectItem value="birth_certificate">Certificat de naștere</SelectItem>
+                      <SelectItem value="marriage_certificate">Certificat de căsătorie</SelectItem>
+                      <SelectItem value="other">Alt document</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Titlu</Label>
+                  <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: CI decedat" />
+                </div>
+                <div>
+                  <Label>Fișier (PDF, JPG, PNG)</Label>
+                  <Input ref={fileRef} type="file" accept=".pdf,.jpg,.jpeg,.png" />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button onClick={handleUpload} disabled={uploading} className="bg-brand-navy hover:bg-brand-navy/90">
+                  {uploading ? "Se încarcă..." : "Încarcă document"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
       <div className="divide-y divide-border">
         {docs.length === 0 && <p className="p-6 text-sm text-muted-foreground">Niciun document încă.</p>}
@@ -231,7 +313,14 @@ function DocumentVault({ docs }: { docs: any[] }) {
                 </p>
               </div>
             </div>
-            {d.signed && <Badge variant="outline" className="text-brand-sage">Validat</Badge>}
+            <div className="flex items-center gap-2">
+              {d.signed && <Badge variant="outline" className="text-brand-sage">Validat</Badge>}
+              {d.storage_path && (
+                <Button size="sm" variant="ghost" onClick={() => handleDownload(d.id)} className="gap-1">
+                  <Download className="size-4" />
+                </Button>
+              )}
+            </div>
           </div>
         ))}
       </div>
