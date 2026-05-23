@@ -55,7 +55,7 @@ function CaseDetail() {
 
           <ActionPanel caseData={c} onChanged={() => {}} />
 
-          <DocumentVault docs={data.documents} />
+          <DocumentVault docs={data.documents} caseId={c.id} />
         </div>
 
         <aside className="space-y-6">
