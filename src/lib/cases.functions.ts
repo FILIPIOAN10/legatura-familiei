@@ -54,9 +54,9 @@ export async function createCase(data: CreateCasePayload) {
   return api.post<{ case: any }>("/cases", data);
 }
 
-export async function getCase(id: string) {
-  if (isDev()) return devGet(id) as any;
-  return api.get<{ case: any; documents: any[]; tasks: any[]; audit: any[] }>(`/cases/${id}`);
+export async function getCase(id: string): Promise<{ case: any; documents: any[]; tasks: any[]; audit: any[] }> {
+  if (isDev()) return devGet(id);
+  return api.get(`/cases/${id}`);
 }
 
 export async function issueCmcd(data: {
