@@ -16,7 +16,7 @@ const SHORT: Record<string, string> = {
 
 export function CaseStepper({ current }: { current: string }) {
   const idx = CASE_STATUS_ORDER.indexOf(current as any);
-  const terminal = current === "SUCCESSION_CLOSED" || current === "ARCHIVED";
+  const terminal = current === "FUNERAL_COMPLETED";
   const progress = terminal ? 100 : (idx / (CASE_STATUS_ORDER.length - 1)) * 100;
   return (
     <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
