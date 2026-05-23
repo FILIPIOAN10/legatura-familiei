@@ -206,8 +206,19 @@ function ArchiveButton({ caseId, onDone }: { caseId: string; onDone: () => void 
   );
 }
 
-  if (role === "family" && caseData.status === "DEATH_CERT_ISSUED") {
+  if (role === "family" && caseData.status === "DEATH_CERT_ISSUED" && isClujNapoca(caseData.city, caseData.county)) {
     return <FuneralProviderPicker certNumber={caseData.certificate_number} city={caseData.city} />;
+  }
+
+  if (role === "family" && caseData.status === "DEATH_CERT_ISSUED") {
+    return (
+      <div className="rounded-xl border border-border bg-card p-6">
+        <h2 className="mb-2 font-display text-lg font-semibold">Alegeți o casă funerară</h2>
+        <p className="text-sm text-muted-foreground">
+          Certificatul de deces a fost emis. Contactați o casă funerară direct.
+        </p>
+      </div>
+    );
   }
 
   return (
