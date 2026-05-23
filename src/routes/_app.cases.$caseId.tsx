@@ -187,7 +187,20 @@ function ActionPanel({ caseData }: { caseData: any }) {
         </p>
       </div>
     );
-  }
+}
+
+function ArchiveButton({ caseId, onDone }: { caseId: string; onDone: () => void }) {
+  const m = useMutation({
+    mutationFn: archiveCase,
+    onSuccess: () => { toast.success("Dosar arhivat oficial."); onDone(); },
+    onError: (e: any) => toast.error(e?.detail ?? e.message),
+  });
+  return (
+    <Button onClick={() => m.mutate({ case_id: caseId })} disabled={m.isPending} className="mt-4 bg-brand-navy hover:bg-brand-navy/90">
+      {m.isPending ? "Se arhivează..." : "Arhivează dosarul"}
+    </Button>
+  );
+}
 
   return (
     <div className="rounded-xl border border-border bg-card p-6">
