@@ -4,7 +4,6 @@ import { devPushNotification } from "@/lib/notifications.functions";
 
 export interface CreateCasePayload {
   deceased_full_name: string;
-  deceased_cnp?: string;
   deceased_dob?: string;
   deceased_dod: string;
   death_location?: string;
