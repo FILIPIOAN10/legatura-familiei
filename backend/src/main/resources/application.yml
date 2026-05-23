@@ -5,6 +5,11 @@ spring:
   application:
     name: exitusro-backend
 
+  servlet:
+    multipart:
+      max-file-size: 25MB
+      max-request-size: 30MB
+
   datasource:
     url: jdbc:h2:mem:exitusro;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     driver-class-name: org.h2.Driver
@@ -37,6 +42,9 @@ app:
 
   cors:
     allowed-origins: http://localhost:3000,http://localhost:5173
+
+  documents:
+    storage-dir: ./var/documents
 
 logging:
   level:

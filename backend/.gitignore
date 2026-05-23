@@ -3,6 +3,9 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+# Local document storage (created by the app at runtime)
+var/
+
 .idea/
 *.iml
 *.iws
