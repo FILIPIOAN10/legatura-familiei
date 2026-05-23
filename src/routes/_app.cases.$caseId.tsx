@@ -345,7 +345,7 @@ function CorrectionsDialog({ onSubmit }: { onSubmit: (reason: string) => void })
   );
 }
 
-function FuneralProviderPicker({ certNumber, city, status }: { certNumber?: string; city?: string; status?: string }) {
+function FuneralProviderPicker({ certNumber, status }: { certNumber?: string; status?: string }) {
   const providers = FUNERAL_PROVIDERS
     .filter((p) => p.city.toLowerCase().includes("cluj"))
     .sort((a, b) => a.priceFrom - b.priceFrom);
@@ -410,7 +410,7 @@ function DocumentVault({ docs, caseId }: { docs: any[]; caseId: string }) {
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const [docType, setDocType] = useState<"id_card" | "birth_certificate" | "marriage_certificate" | "other">("other");
+  const [docType, setDocType] = useState<string>("id_card_deceased");
   const [title, setTitle] = useState("");
   const [open, setOpen] = useState(false);
 
@@ -459,12 +459,13 @@ function DocumentVault({ docs, caseId }: { docs: any[]; caseId: string }) {
               <div className="space-y-4">
                 <div>
                   <Label>Tip document</Label>
-                  <Select value={docType} onValueChange={(v) => setDocType(v as any)}>
+                  <Select value={docType} onValueChange={(v) => setDocType(v)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="id_card">Carte de identitate</SelectItem>
-                      <SelectItem value="birth_certificate">Certificat de naștere</SelectItem>
+                      <SelectItem value="id_card_deceased">CI/BI decedat</SelectItem>
+                      <SelectItem value="birth_certificate">Certificat de naștere decedat</SelectItem>
                       <SelectItem value="marriage_certificate">Certificat de căsătorie</SelectItem>
+                      <SelectItem value="id_card_declarant">CI declarant</SelectItem>
                       <SelectItem value="other">Alt document</SelectItem>
                     </SelectContent>
                   </Select>
