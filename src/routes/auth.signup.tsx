@@ -30,7 +30,15 @@ function Signup() {
       },
     });
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) {
+      const code = (error as any).code;
+      if (code === "user_already_exists" || /already registered/i.test(error.message)) {
+        toast.error("Există deja un cont cu acest email. Vă rugăm să vă autentificați.");
+        nav({ to: "/auth/login", search: { email } as any });
+        return;
+      }
+      return toast.error(error.message);
+    }
     toast.success("Cont creat. Vă autentificăm...");
     await supabase.auth.signInWithPassword({ email, password });
     nav({ to: "/cases" });
