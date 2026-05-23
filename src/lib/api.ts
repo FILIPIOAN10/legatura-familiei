@@ -16,6 +16,14 @@ export interface LoginPayload {
   password: string;
 }
 
+export interface RegisterPayload {
+  email: string;
+  username: string;
+  full_name: string;
+  password: string;
+  role: "family" | "doctor" | "funeral_provider" | "notary";
+}
+
 export interface ApiUser {
   id: number;
   email: string;
@@ -60,6 +68,12 @@ export const api = {
 
   login: (payload: LoginPayload) =>
     request<ApiUser>("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  register: (payload: RegisterPayload) =>
+    request<ApiUser>("/api/auth/register", {
       method: "POST",
       body: JSON.stringify(payload),
     }),

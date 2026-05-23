@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
-import { api, hasAuthCookie, type ApiUser } from "@/lib/api";
+import { api, hasAuthCookie, type ApiUser, type RegisterPayload } from "@/lib/api";
 
 export type AppRole = ApiUser["role"];
 
@@ -10,6 +10,7 @@ interface AuthCtx {
   roles: AppRole[];
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
+  signUp: (payload: RegisterPayload) => Promise<void>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -33,6 +34,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     const u = await api.login({ email, password });
+    setUser(u);
+    router.invalidate();
+    qc.invalidateQueries();
+  };
+
+  const signUp = async (payload: RegisterPayload) => {
+    const u = await api.register(payload);
     setUser(u);
     router.invalidate();
     qc.invalidateQueries();
@@ -64,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const roles: AppRole[] = user?.role ? [user.role] : [];
 
   return (
-    <Ctx.Provider value={{ user, roles, loading, signIn, signOut, refresh }}>
+    <Ctx.Provider value={{ user, roles, loading, signIn, signUp, signOut, refresh }}>
       {children}
     </Ctx.Provider>
   );

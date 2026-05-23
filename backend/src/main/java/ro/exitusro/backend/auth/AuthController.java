@@ -13,18 +13,32 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import ro.exitusro.backend.auth.dto.LoginRequest;
+import ro.exitusro.backend.auth.dto.RegisterRequest;
 import ro.exitusro.backend.auth.dto.UserResponse;
 import ro.exitusro.backend.config.AppProperties;
 import ro.exitusro.backend.security.CurrentUser;
 import ro.exitusro.backend.security.JwtService;
+import ro.exitusro.backend.user.Role;
 import ro.exitusro.backend.user.UserAccount;
 import ro.exitusro.backend.user.UserRepository;
 
+import java.util.Set;
+
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
+
+    /** Roles a user may self-register as. Admin / civil_officer must be provisioned. */
+    private static final Set<Role> SELF_REGISTRATION_ALLOWED = Set.of(
+            Role.FAMILY,
+            Role.DOCTOR,
+            Role.FUNERAL_PROVIDER,
+            Role.NOTARY
+    );
 
     private final UserRepository users;
     private final PasswordEncoder encoder;
@@ -36,6 +50,40 @@ public class AuthController {
         this.encoder = encoder;
         this.jwt = jwt;
         this.props = props;
+    }
+
+    @PostMapping("/register")
+    public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest req,
+                                                 HttpServletResponse response) {
+        Role role;
+        try {
+            role = Role.fromValue(req.role());
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(BAD_REQUEST, "Unknown role: " + req.role());
+        }
+        if (!SELF_REGISTRATION_ALLOWED.contains(role)) {
+            throw new ResponseStatusException(
+                    BAD_REQUEST,
+                    "Role '" + role.value() + "' must be provisioned by an administrator"
+            );
+        }
+        String email = req.email().trim().toLowerCase();
+        if (users.existsByEmailIgnoreCase(email)) {
+            throw new ResponseStatusException(CONFLICT, "An account with this email already exists");
+        }
+
+        UserAccount user = new UserAccount(
+                email,
+                req.username().trim(),
+                req.fullName().trim(),
+                encoder.encode(req.password()),
+                role
+        );
+        users.save(user);
+
+        String token = jwt.issueToken(user);
+        addAuthCookies(response, token);
+        return ResponseEntity.status(201).body(UserResponse.from(user));
     }
 
     @PostMapping("/login")
