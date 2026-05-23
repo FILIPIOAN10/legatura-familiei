@@ -54,7 +54,9 @@ function CaseDetail() {
 
           <ActionPanel caseData={c} />
 
-          <DocumentVault docs={data.documents} caseId={c.id} />
+          {c.status !== "AWAITING_DOCTOR" && (
+            <DocumentVault docs={data.documents} caseId={c.id} />
+          )}
         </div>
 
         <aside className="space-y-6">
