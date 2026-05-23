@@ -1,6 +1,5 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
 import { listMyCases } from "@/lib/cases.functions";
 import { useAuth, primaryRole } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -15,16 +14,18 @@ function CasesPage() {
   const { data, isLoading } = useQuery({ queryKey: ["cases"], queryFn: () => listMyCases() });
   const { roles } = useAuth();
   const role = primaryRole(roles);
-  const nav = useNavigate();
   const count = data?.cases?.length ?? 0;
 
-  // The very first action for an aparținător is to notify the doctor.
-  // If they have no cases yet, jump straight to that screen.
-  useEffect(() => {
-    if (!isLoading && role === "family" && count === 0) {
-      nav({ to: "/cases/new", replace: true });
-    }
-  }, [isLoading, role, count, nav]);
+  if (isLoading) {
+    return <p className="text-sm text-muted-foreground">Se încarcă...</p>;
+  }
+
+  // The aparținător's very first action is to notify the doctor — when they
+  // have no cases yet (including on a fresh dev login as `demo.family`), we
+  // render the "Notifică medicul" screen instead of an empty case list.
+  if (role === "family" && count === 0) {
+    return <Navigate to="/cases/new" replace />;
+  }
 
   return (
     <div>
@@ -38,9 +39,7 @@ function CasesPage() {
         </Link>
       </div>
 
-      {isLoading && <p className="text-sm text-muted-foreground">Se încarcă...</p>}
-
-      {!isLoading && count === 0 && role !== "family" && (
+      {count === 0 && (
         <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center">
           <h3 className="font-display font-semibold">Nu aveți cazuri active</h3>
           <p className="mt-2 text-sm text-muted-foreground">Nu există dosare care vă sunt asociate momentan.</p>
