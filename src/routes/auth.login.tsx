@@ -63,9 +63,9 @@ function Login() {
   const auth = useAuth();
   const nav = useNavigate();
 
-  const devSkip = () => {
-    auth.devLogin?.();
-    nav({ to: "/cases" });
+  const devSkip = (role: "family" | "doctor" | "civil_officer" | "funeral_provider" | "notary") => {
+    auth.devLoginAs?.(role);
+    nav({ to: role === "family" ? "/cases" : "/inbox" });
   };
 
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -160,16 +160,34 @@ function Login() {
           </Link>
         </p>
 
-        {auth.devLogin && (
-          <div className="mt-4 border-t border-dashed border-border pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full text-xs text-muted-foreground"
-              onClick={devSkip}
-            >
-              [DEV] Skip login
-            </Button>
+        {auth.devLoginAs && (
+          <div className="mt-6 border-t border-dashed border-border pt-4">
+            <p className="mb-2 text-[11px] uppercase tracking-wide text-muted-foreground">
+              [DEV] Intră ca demo — testează flow-ul cross-rol
+            </p>
+            <div className="grid grid-cols-1 gap-2">
+              {[
+                { role: "family" as const, label: "Aparținător (familie)", hint: "Deschide dosar, urmărește pașii" },
+                { role: "doctor" as const, label: "Medic constatator", hint: "Emite CMCD" },
+                { role: "civil_officer" as const, label: "Funcționar Stare Civilă", hint: "Validează & emite certificat" },
+                { role: "funeral_provider" as const, label: "Casă funerară", hint: "Programează înmormântarea" },
+                { role: "notary" as const, label: "Notar public", hint: "Deschide succesiunea" },
+              ].map((r) => (
+                <Button
+                  key={r.role}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-auto justify-start py-2 text-left"
+                  onClick={() => devSkip(r.role)}
+                >
+                  <div>
+                    <div className="text-xs font-medium">{r.label}</div>
+                    <div className="text-[10px] text-muted-foreground">{r.hint}</div>
+                  </div>
+                </Button>
+              ))}
+            </div>
           </div>
         )}
       </div>

@@ -1,35 +1,20 @@
 import { api, TOKEN_KEY } from "@/lib/api";
 
-const DEV_TOKEN = "__dev__";
 const DEV_KEY = "dev_notifications_v1";
-const isDev = () => typeof window !== "undefined" && localStorage.getItem(TOKEN_KEY) === DEV_TOKEN;
+export const isDev = () =>
+  typeof window !== "undefined" && (localStorage.getItem(TOKEN_KEY) ?? "").startsWith("__dev__");
 
 function seed() {
   const now = Date.now();
   return [
     {
-      id: "n1",
-      title: "Dosar deschis cu succes",
-      body: "Dosarul DEMO-2026-0001 a fost creat. Medicul de familie a fost notificat pentru emiterea CMCD.",
-      type: "case_opened",
+      id: "n-seed-1",
+      audience: "family",
+      title: "Bun venit în ExitusRO",
+      body: "Aici veți primi toate notificările despre dosarele dvs.: când medicul emite CMCD, când Starea Civilă validează, termenele legale etc.",
+      type: "welcome",
       read_at: null,
-      created_at: new Date(now - 1000 * 60 * 12).toISOString(),
-    },
-    {
-      id: "n2",
-      title: "CMCD emis",
-      body: "Medicul a emis Certificatul Medical Constatator al Decesului. Cazul a fost transmis la Starea Civilă.",
-      type: "cmcd_issued",
-      read_at: null,
-      created_at: new Date(now - 1000 * 60 * 60 * 3).toISOString(),
-    },
-    {
-      id: "n3",
-      title: "Termen legal: 3 zile",
-      body: "Aveți la dispoziție 3 zile de la deces pentru declararea la Starea Civilă (L. 119/1996 art. 35).",
-      type: "deadline",
-      read_at: new Date(now - 1000 * 60 * 60 * 24).toISOString(),
-      created_at: new Date(now - 1000 * 60 * 60 * 26).toISOString(),
+      created_at: new Date(now - 1000 * 60 * 5).toISOString(),
     },
   ];
 }
@@ -43,16 +28,42 @@ function devRead(): any[] {
       return s;
     }
     return JSON.parse(raw);
-  } catch {
-    return [];
-  }
+  } catch { return []; }
 }
-function devWrite(list: any[]) {
-  localStorage.setItem(DEV_KEY, JSON.stringify(list));
+function devWrite(list: any[]) { localStorage.setItem(DEV_KEY, JSON.stringify(list)); }
+
+/** Push a notification targeted at one or more roles (or "all"). */
+export function devPushNotification(opts: {
+  audience: "family" | "doctor" | "civil_officer" | "funeral_provider" | "notary" | "all";
+  title: string;
+  body: string;
+  type: string;
+  case_id?: string;
+}) {
+  const list = devRead();
+  list.unshift({
+    id: `n-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    read_at: null,
+    created_at: new Date().toISOString(),
+    ...opts,
+  });
+  devWrite(list);
+}
+
+function currentDevRole(): string | null {
+  const t = localStorage.getItem(TOKEN_KEY) ?? "";
+  if (t === "__dev__") return "family";
+  if (t.startsWith("__dev__:")) return t.slice("__dev__:".length);
+  return null;
 }
 
 export async function listNotifications() {
-  if (isDev()) return { notifications: devRead() };
+  if (isDev()) {
+    const role = currentDevRole();
+    const all = devRead();
+    const filtered = all.filter((n) => !n.audience || n.audience === "all" || n.audience === role);
+    return { notifications: filtered };
+  }
   return api.get<{ notifications: any[] }>("/notifications");
 }
 

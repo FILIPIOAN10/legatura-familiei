@@ -1,8 +1,8 @@
 import { api, TOKEN_KEY } from "@/lib/api";
 
-const DEV_TOKEN = "__dev__";
 const DEV_KEY = "dev_documents_v1";
-const isDev = () => typeof window !== "undefined" && localStorage.getItem(TOKEN_KEY) === DEV_TOKEN;
+const isDev = () =>
+  typeof window !== "undefined" && (localStorage.getItem(TOKEN_KEY) ?? "").startsWith("__dev__");
 
 function devRead(): any[] {
   try {
