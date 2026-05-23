@@ -16,6 +16,8 @@ const SHORT: Record<string, string> = {
 
 export function CaseStepper({ current }: { current: string }) {
   const idx = CASE_STATUS_ORDER.indexOf(current as any);
+  const terminal = current === "SUCCESSION_CLOSED" || current === "ARCHIVED";
+  const progress = terminal ? 100 : (idx / (CASE_STATUS_ORDER.length - 1)) * 100;
   return (
     <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
       <h2 className="mb-6 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -25,12 +27,12 @@ export function CaseStepper({ current }: { current: string }) {
         <div className="absolute left-0 right-0 top-4 h-0.5 bg-muted" />
         <div
           className="absolute left-0 top-4 h-0.5 bg-brand-sage transition-all"
-          style={{ width: `${Math.max(0, (idx / (CASE_STATUS_ORDER.length - 1)) * 100)}%` }}
+          style={{ width: `${Math.max(0, progress)}%` }}
         />
         <div className="relative flex justify-between">
           {CASE_STATUS_ORDER.map((s, i) => {
-            const done = i < idx;
-            const active = i === idx;
+            const done = i < idx || (terminal && i <= idx);
+            const active = i === idx && !terminal;
             return (
               <div key={s} className="flex flex-col items-center gap-2" title={CASE_STATUS_LABELS[s]}>
                 <div

@@ -158,6 +158,21 @@ function ActionPanel({ caseData }: { caseData: any }) {
     return <NotaryPanel caseData={caseData} onChanged={invalidate} />;
   }
 
+  if (caseData.status === "SUCCESSION_CLOSED") {
+    return (
+      <div className="rounded-xl border-2 border-brand-sage bg-brand-sage/5 p-6">
+        <div className="mb-2 flex items-center gap-2">
+          <span className="flex size-7 items-center justify-center rounded-full bg-brand-sage text-white">✓</span>
+          <h2 className="font-display text-lg font-semibold text-brand-navy">Dosar finalizat</h2>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Toate etapele legale au fost parcurse. Certificatul de moștenitor a fost emis și succesiunea este închisă.
+          Documentele rămân disponibile în seif pentru consultare.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-xl border border-border bg-card p-6">
       <h2 className="mb-2 font-display text-lg font-semibold">Status curent</h2>
