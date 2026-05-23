@@ -19,20 +19,29 @@ export const LEGAL_REFS = {
 export const CASE_STATUS_LABELS: Record<string, string> = {
   DRAFT: "Ciornă",
   AWAITING_DOCTOR: "Așteaptă medic",
-  CMCD_ISSUED: "CMCD emis",
+  CMCD_ISSUED: "Încarcă acte",
   AWAITING_CIVIL_OFFICER: "La Starea Civilă",
   DEATH_CERT_ISSUED: "Certificat deces emis",
   FUNERAL_SCHEDULED: "Înmormântare programată",
   FUNERAL_COMPLETED: "Înmormântare finalizată",
 };
 
+// Steps shown in the case stepper (5 visible boxes). FUNERAL_COMPLETED is
+// the terminal state of the last box and is handled separately.
 export const CASE_STATUS_ORDER = [
   "AWAITING_DOCTOR",
   "CMCD_ISSUED",
   "AWAITING_CIVIL_OFFICER",
   "DEATH_CERT_ISSUED",
   "FUNERAL_SCHEDULED",
-  "FUNERAL_COMPLETED",
+] as const;
+
+// Documents the family must upload before the case can move to the civil
+// officer. The marriage certificate is collected separately when relevant.
+export const REQUIRED_FAMILY_DOC_TYPES = [
+  "id_card_deceased",
+  "birth_certificate",
+  "id_card_declarant",
 ] as const;
 
 

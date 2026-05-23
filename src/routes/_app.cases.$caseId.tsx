@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRef, useState } from "react";
-import { getCase, issueCmcd, validateAndIssueDeathCert, requestCorrections, scheduleFuneral, completeFuneral } from "@/lib/cases.functions";
+import { useMemo, useRef, useState } from "react";
+import { getCase, issueCmcd, validateAndIssueDeathCert, requestCorrections, scheduleFuneral, completeFuneral, submitDocumentsToCivilOfficer } from "@/lib/cases.functions";
 import { uploadDocument, getDocumentDownloadUrl } from "@/lib/documents.functions";
 import { CaseStepper } from "@/components/case-stepper";
 import { DeadlineCard } from "@/components/deadline-card";
@@ -13,11 +13,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { CASE_STATUS_LABELS, DOC_TYPE_LABELS } from "@/lib/legal";
+import { CASE_STATUS_LABELS, DOC_TYPE_LABELS, REQUIRED_FAMILY_DOC_TYPES } from "@/lib/legal";
 import { formatDateTimeRo } from "@/lib/format";
 import { toast } from "sonner";
-import { FileText, Stethoscope, Building2, Upload, Download, Phone, Star, MapPin } from "lucide-react";
+import { FileText, Stethoscope, Building2, Upload, Download, Phone, Star, MapPin, CheckCircle2, Circle, Send } from "lucide-react";
 import { FUNERAL_PROVIDERS } from "@/lib/funeral-providers";
+
+const OPTIONAL_FAMILY_DOC_TYPES = ["marriage_certificate"] as const;
+const FAMILY_UPLOAD_TYPES = [
+  ...REQUIRED_FAMILY_DOC_TYPES,
+  ...OPTIONAL_FAMILY_DOC_TYPES,
+  "other",
+] as const;
 
 
 export const Route = createFileRoute("/_app/cases/$caseId")({ component: CaseDetail });
@@ -52,10 +59,10 @@ function CaseDetail() {
         <div className="space-y-6 lg:col-span-2">
           <CaseStepper current={c.status} />
 
-          <ActionPanel caseData={c} />
+          <ActionPanel caseData={c} docs={data.documents} />
 
           {c.status !== "AWAITING_DOCTOR" && (
-            <DocumentVault docs={data.documents} caseId={c.id} />
+            <DocumentVault docs={data.documents} caseId={c.id} status={c.status} />
           )}
         </div>
 
@@ -105,7 +112,7 @@ function isClujNapoca(city?: string, county?: string) {
   return j.includes("cluj") && (c.includes("cluj napoca") || c.includes("cluj"));
 }
 
-function ActionPanel({ caseData }: { caseData: any }) {
+function ActionPanel({ caseData, docs }: { caseData: any; docs: any[] }) {
   const { roles } = useAuth();
   const role = primaryRole(roles);
   const qc = useQueryClient();
@@ -113,7 +120,12 @@ function ActionPanel({ caseData }: { caseData: any }) {
 
   const issueM = useMutation({
     mutationFn: issueCmcd,
-    onSuccess: () => { toast.success("CMCD emis și transmis la Starea Civilă."); invalidate(); },
+    onSuccess: () => { toast.success("CMCD emis."); invalidate(); },
+    onError: (e: any) => toast.error(e?.detail ?? e.message),
+  });
+  const submitDocsM = useMutation({
+    mutationFn: submitDocumentsToCivilOfficer,
+    onSuccess: () => { toast.success("Acte trimise la Starea Civilă."); invalidate(); },
     onError: (e: any) => toast.error(e?.detail ?? e.message),
   });
   const validateM = useMutation({
@@ -136,42 +148,28 @@ function ActionPanel({ caseData }: { caseData: any }) {
     );
   }
 
-  if (role === "civil_officer" && (caseData.status === "CMCD_ISSUED" || caseData.status === "AWAITING_CIVIL_OFFICER")) {
+  if (role === "family" && caseData.status === "CMCD_ISSUED") {
     return (
-      <div className="rounded-xl border border-border bg-card p-6">
-        <div className="mb-4 flex items-center gap-2">
-          <Building2 className="size-5 text-brand-navy" />
-          <h2 className="font-display text-lg font-semibold">Înregistrare în SIIEASC</h2>
-        </div>
-        <p className="mb-4 text-sm text-muted-foreground">
-          Verificați CMCD-ul și actele anexate (CI/BI decedat, certificat de naștere, certificat de căsătorie, CI declarant).
-          La validare se înregistrează decesul în <strong>SIIEASC</strong> (Sistemul Informatic Integrat pentru Emiterea Actelor de Stare Civilă),
-          se generează actul de deces și certificatul de deces, și, dacă e cazul, adeverința de înhumare.
-        </p>
-        <ul className="mb-6 space-y-1 text-xs text-muted-foreground">
-          <li>✓ CMCD primit de la medic</li>
-          <li>✓ Acte aparținător încărcate în seif</li>
-          <li>→ Înregistrare în SIIEASC și emitere certificat</li>
-        </ul>
-        <div className="flex flex-wrap gap-3">
-          <Button
-            onClick={() => validateM.mutate({ case_id: caseData.id })}
-            disabled={validateM.isPending}
-            className="bg-brand-navy hover:bg-brand-navy/90"
-          >
-            {validateM.isPending ? "Se înregistrează în SIIEASC..." : "Înregistrează în SIIEASC și emite certificat"}
-          </Button>
-          <CorrectionsDialog onSubmit={(reason) => correctionsM.mutate({ case_id: caseData.id, reason })} />
-        </div>
-      </div>
+      <FamilyDocsChecklist
+        docs={docs}
+        onSubmit={() => submitDocsM.mutate({ case_id: caseData.id })}
+        busy={submitDocsM.isPending}
+      />
+    );
+  }
+
+  if (role === "civil_officer" && caseData.status === "AWAITING_CIVIL_OFFICER") {
+    return (
+      <CivilOfficerPanel
+        docs={docs}
+        onValidate={() => validateM.mutate({ case_id: caseData.id })}
+        validating={validateM.isPending}
+        onRequestCorrections={(reason) => correctionsM.mutate({ case_id: caseData.id, reason })}
+      />
     );
   }
 
   if (role === "family" && caseData.status === "DEATH_CERT_ISSUED" && isClujNapoca(caseData.city, caseData.county)) {
-    return <FuneralProviderPicker certNumber={caseData.certificate_number} status={caseData.status} />;
-  }
-
-  if (role === "civil_officer" && caseData.status === "DEATH_CERT_ISSUED" && isClujNapoca(caseData.city, caseData.county)) {
     return <FuneralProviderPicker certNumber={caseData.certificate_number} status={caseData.status} />;
   }
 
@@ -196,11 +194,156 @@ function ActionPanel({ caseData }: { caseData: any }) {
       <p className="text-sm text-muted-foreground">
         Cazul este în starea: <strong className="text-brand-navy">{CASE_STATUS_LABELS[caseData.status]}</strong>.
         {role === "family" && caseData.status === "AWAITING_DOCTOR" && " Medicul a fost notificat. Așteptăm emiterea CMCD."}
-        {role === "family" && caseData.status === "CMCD_ISSUED" && " CMCD-ul a fost emis. Încărcați actele necesare (CI/BI decedat, certificat naștere, certificat căsătorie dacă e cazul, CI declarant) pentru a notifica funcționarul de stare civilă."}
-        {role === "family" && caseData.status === "DEATH_CERT_ISSUED" && ` Certificatul de deces ${caseData.certificate_number ?? ""} este disponibil. Puteți contacta o casă funerară.`}
+        {role === "family" && caseData.status === "AWAITING_CIVIL_OFFICER" && " Actele au fost trimise la Starea Civilă. Vă vom notifica imediat ce certificatul de deces este gata."}
         {role === "family" && caseData.status === "FUNERAL_SCHEDULED" && " Casa funerară a programat serviciul. Detalii în jurnalul de acțiuni."}
         {role === "family" && caseData.status === "FUNERAL_COMPLETED" && " Înmormântarea s-a finalizat. Procesul este complet."}
+        {role === "civil_officer" && caseData.status === "CMCD_ISSUED" && " Aparținătorul încarcă actele. Veți primi notificare când dosarul este complet și gata de validare."}
+        {role === "civil_officer" && caseData.status === "AWAITING_DOCTOR" && " Așteptăm medicul să emită CMCD-ul."}
+        {role === "civil_officer" && caseData.status === "DEATH_CERT_ISSUED" && ` Certificatul ${caseData.certificate_number ?? ""} a fost emis. Aparținătorul a fost notificat și poate alege casa funerară.`}
+        {role === "civil_officer" && (caseData.status === "FUNERAL_SCHEDULED" || caseData.status === "FUNERAL_COMPLETED") && " Dosarul a trecut în faza de înmormântare."}
       </p>
+    </div>
+  );
+}
+
+function FamilyDocsChecklist({
+  docs,
+  onSubmit,
+  busy,
+}: {
+  docs: any[];
+  onSubmit: () => void;
+  busy: boolean;
+}) {
+  const uploaded = useMemo(() => new Set(docs.map((d) => d.type)), [docs]);
+  const missing = REQUIRED_FAMILY_DOC_TYPES.filter((t) => !uploaded.has(t));
+  const allRequiredUploaded = missing.length === 0;
+
+  return (
+    <div className="rounded-xl border-2 border-brand-navy/20 bg-card p-6 shadow-sm">
+      <div className="mb-2 flex items-center gap-2">
+        <Upload className="size-5 text-brand-navy" />
+        <h2 className="font-display text-lg font-semibold">Încărcați actele necesare</h2>
+      </div>
+      <p className="mb-5 text-sm text-muted-foreground">
+        Medicul a emis CMCD-ul. Pentru a trimite dosarul la Starea Civilă, încărcați actele de mai jos
+        (doar PDF) folosind butonul <strong>Încarcă</strong> din seif.
+      </p>
+      <ul className="mb-5 space-y-2 text-sm">
+        {REQUIRED_FAMILY_DOC_TYPES.map((t) => {
+          const done = uploaded.has(t);
+          return (
+            <li key={t} className="flex items-center gap-2">
+              {done ? (
+                <CheckCircle2 className="size-4 text-brand-sage" />
+              ) : (
+                <Circle className="size-4 text-muted-foreground/60" />
+              )}
+              <span className={done ? "text-foreground" : "text-muted-foreground"}>
+                {DOC_TYPE_LABELS[t]} <span className="text-[11px] uppercase text-brand-amber">Obligatoriu</span>
+              </span>
+            </li>
+          );
+        })}
+        {OPTIONAL_FAMILY_DOC_TYPES.map((t) => {
+          const done = uploaded.has(t);
+          return (
+            <li key={t} className="flex items-center gap-2">
+              {done ? (
+                <CheckCircle2 className="size-4 text-brand-sage" />
+              ) : (
+                <Circle className="size-4 text-muted-foreground/40" />
+              )}
+              <span className={done ? "text-foreground" : "text-muted-foreground"}>
+                {DOC_TYPE_LABELS[t]} <span className="text-[11px] uppercase text-muted-foreground">Opțional</span>
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      <Button
+        onClick={onSubmit}
+        disabled={busy || !allRequiredUploaded}
+        className="gap-2 bg-brand-navy hover:bg-brand-navy/90"
+      >
+        <Send className="size-4" />
+        {busy
+          ? "Se trimite..."
+          : allRequiredUploaded
+            ? "Trimite dosarul la Starea Civilă"
+            : `Mai trebuie ${missing.length} ${missing.length === 1 ? "act" : "acte"}`}
+      </Button>
+      {!allRequiredUploaded && (
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          Butonul se activează după ce încărcați toate actele obligatorii.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function CivilOfficerPanel({
+  docs,
+  onValidate,
+  validating,
+  onRequestCorrections,
+}: {
+  docs: any[];
+  onValidate: () => void;
+  validating: boolean;
+  onRequestCorrections: (reason: string) => void;
+}) {
+  const uploaded = useMemo(() => new Set(docs.map((d) => d.type)), [docs]);
+  const missing = REQUIRED_FAMILY_DOC_TYPES.filter((t) => !uploaded.has(t));
+  const complete = missing.length === 0;
+  return (
+    <div className="rounded-xl border border-border bg-card p-6">
+      <div className="mb-4 flex items-center gap-2">
+        <Building2 className="size-5 text-brand-navy" />
+        <h2 className="font-display text-lg font-semibold">Înregistrare în SIIEASC</h2>
+      </div>
+      <p className="mb-4 text-sm text-muted-foreground">
+        Verificați CMCD-ul și actele anexate (CI/BI decedat, certificat de naștere, certificat de căsătorie,
+        CI declarant). La validare se înregistrează decesul în <strong>SIIEASC</strong> (Sistemul Informatic
+        Integrat pentru Emiterea Actelor de Stare Civilă), se generează actul de deces și certificatul de
+        deces, și, dacă e cazul, adeverința de înhumare. Aparținătorul va fi notificat automat.
+      </p>
+      <ul className="mb-6 space-y-1 text-xs">
+        <li className="flex items-center gap-2 text-foreground">
+          <CheckCircle2 className="size-3.5 text-brand-sage" />
+          CMCD primit de la medic
+        </li>
+        {REQUIRED_FAMILY_DOC_TYPES.map((t) => {
+          const done = uploaded.has(t);
+          return (
+            <li
+              key={t}
+              className={`flex items-center gap-2 ${done ? "text-foreground" : "text-brand-amber"}`}
+            >
+              {done ? (
+                <CheckCircle2 className="size-3.5 text-brand-sage" />
+              ) : (
+                <Circle className="size-3.5 text-brand-amber" />
+              )}
+              {DOC_TYPE_LABELS[t]} {!done && <span className="uppercase">— lipsește</span>}
+            </li>
+          );
+        })}
+      </ul>
+      <div className="flex flex-wrap gap-3">
+        <Button
+          onClick={onValidate}
+          disabled={validating || !complete}
+          className="bg-brand-navy hover:bg-brand-navy/90"
+        >
+          {validating
+            ? "Se înregistrează în SIIEASC..."
+            : complete
+              ? "Înregistrează în SIIEASC și emite certificat"
+              : "Acte incomplete"}
+        </Button>
+        <CorrectionsDialog onSubmit={onRequestCorrections} />
+      </div>
     </div>
   );
 }
@@ -359,13 +502,40 @@ function FuneralProviderPicker({ certNumber, status }: { certNumber?: string; st
   );
 }
 
-function DocumentVault({ docs, caseId }: { docs: any[]; caseId: string }) {
+function DocumentVault({ docs, caseId, status }: { docs: any[]; caseId: string; status: string }) {
   const qc = useQueryClient();
+  const { roles } = useAuth();
+  const role = primaryRole(roles);
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const [docType, setDocType] = useState<string>("id_card_deceased");
-  const [title, setTitle] = useState("");
   const [open, setOpen] = useState(false);
+
+  // Family may upload only while the case is at CMCD_ISSUED (before submitting
+  // the dossier to the civil officer). Once submitted, the vault is read-only.
+  const canUpload = role === "family" && status === "CMCD_ISSUED";
+
+  // Hide doc types that have already been uploaded so each type can only be
+  // uploaded once (the family avoids duplicates and confusion).
+  const uploadedTypes = useMemo(() => new Set(docs.map((d) => d.type)), [docs]);
+  const availableTypes = FAMILY_UPLOAD_TYPES.filter((t) => t === "other" || !uploadedTypes.has(t));
+  const firstAvailable = availableTypes[0] ?? "other";
+
+  const [docType, setDocType] = useState<string>(firstAvailable);
+  const [title, setTitle] = useState<string>("");
+
+  const openDialog = (next: boolean) => {
+    setOpen(next);
+    if (next) {
+      const initial = availableTypes[0] ?? "other";
+      setDocType(initial);
+      setTitle(DOC_TYPE_LABELS[initial] ?? "");
+    }
+  };
+
+  const handleTypeChange = (v: string) => {
+    setDocType(v);
+    setTitle(DOC_TYPE_LABELS[v] ?? "");
+  };
 
   const handleUpload = async () => {
     const file = fileRef.current?.files?.[0];
@@ -395,50 +565,65 @@ function DocumentVault({ docs, caseId }: { docs: any[]; caseId: string }) {
     }
   };
 
+  const allRequiredUploaded = REQUIRED_FAMILY_DOC_TYPES.every((t) => uploadedTypes.has(t));
+  // If we ran out of types other than "other", offer just "other" so the user
+  // can still add miscellaneous documents.
+  const dropdownTypes = availableTypes.length > 0 ? availableTypes : (["other"] as const);
+
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
       <div className="flex items-center justify-between border-b border-border bg-muted/30 px-6 py-4">
         <h2 className="font-display text-sm font-semibold">Seiful cu documente</h2>
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted-foreground">{docs.length} documente</span>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" variant="outline" className="gap-2">
-                <Upload className="size-4" /> Încarcă
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Încarcă document</DialogTitle></DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label>Tip document</Label>
-                  <Select value={docType} onValueChange={(v) => setDocType(v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="id_card_deceased">CI/BI decedat</SelectItem>
-                      <SelectItem value="birth_certificate">Certificat de naștere decedat</SelectItem>
-                      <SelectItem value="marriage_certificate">Certificat de căsătorie</SelectItem>
-                      <SelectItem value="id_card_declarant">CI declarant</SelectItem>
-                      <SelectItem value="other">Alt document</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Titlu</Label>
-                  <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: CI decedat" />
-                </div>
-                <div>
-                  <Label>Fișier (doar PDF)</Label>
-                  <Input ref={fileRef} type="file" accept="application/pdf,.pdf" />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button onClick={handleUpload} disabled={uploading} className="bg-brand-navy hover:bg-brand-navy/90">
-                  {uploading ? "Se încarcă..." : "Încarcă document"}
+          {canUpload && (
+            <Dialog open={open} onOpenChange={openDialog}>
+              <DialogTrigger asChild>
+                <Button
+                  size="sm"
+                  variant={allRequiredUploaded ? "outline" : "default"}
+                  className={`gap-2 ${allRequiredUploaded ? "" : "bg-brand-navy hover:bg-brand-navy/90 text-white"}`}
+                >
+                  <Upload className="size-4" /> Încarcă
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Încarcă document</DialogTitle></DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label>Tip document</Label>
+                    <Select value={docType} onValueChange={handleTypeChange}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {dropdownTypes.map((t) => (
+                          <SelectItem key={t} value={t}>{DOC_TYPE_LABELS[t]}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {availableTypes.length === 1 && availableTypes[0] === "other" && (
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        Toate actele predefinite au fost încărcate. Pentru orice document suplimentar
+                        folosiți „Alt document”.
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <Label>Titlu</Label>
+                    <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: CI decedat" />
+                  </div>
+                  <div>
+                    <Label>Fișier (doar PDF)</Label>
+                    <Input ref={fileRef} type="file" accept="application/pdf,.pdf" />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button onClick={handleUpload} disabled={uploading} className="bg-brand-navy hover:bg-brand-navy/90">
+                    {uploading ? "Se încarcă..." : "Încarcă document"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
       </div>
       <div className="divide-y divide-border">

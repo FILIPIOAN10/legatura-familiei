@@ -23,9 +23,9 @@ function Inbox() {
     title = "Inbox medic constatator";
     subtitle = "Cazuri în așteptarea emiterii CMCD";
   } else if (role === "civil_officer") {
-    pending = filter(["CMCD_ISSUED", "AWAITING_CIVIL_OFFICER"]);
+    pending = filter(["AWAITING_CIVIL_OFFICER"]);
     title = "Inbox Stare Civilă";
-    subtitle = "Cazuri ce așteaptă validare și emitere certificat de deces";
+    subtitle = "Cazuri cu CMCD emis și acte încărcate, care așteaptă înregistrarea în SIIEASC și emiterea certificatului de deces";
   } else if (role === "funeral_provider") {
     pending = filter(["DEATH_CERT_ISSUED", "FUNERAL_SCHEDULED"]);
     title = "Inbox casă funerară";

@@ -5,15 +5,15 @@ const SHORT: Record<string, string> = {
   DRAFT: "Ciornă",
   AWAITING_DOCTOR: "Medic",
   CMCD_ISSUED: "CMCD",
-  AWAITING_CIVIL_OFFICER: "St. Civilă",
+  AWAITING_CIVIL_OFFICER: "Acte",
   DEATH_CERT_ISSUED: "Certificat",
   FUNERAL_SCHEDULED: "Înmormântare",
-  FUNERAL_COMPLETED: "Finalizat",
 };
 
 export function CaseStepper({ current }: { current: string }) {
-  const idx = CASE_STATUS_ORDER.indexOf(current as any);
   const terminal = current === "FUNERAL_COMPLETED";
+  const rawIdx = CASE_STATUS_ORDER.indexOf(current as any);
+  const idx = terminal ? CASE_STATUS_ORDER.length - 1 : rawIdx;
   const progress = terminal ? 100 : (idx / (CASE_STATUS_ORDER.length - 1)) * 100;
   return (
     <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
