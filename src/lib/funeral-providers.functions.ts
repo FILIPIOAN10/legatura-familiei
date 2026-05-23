@@ -82,7 +82,9 @@ export const searchFuneralProviders = createServerFn({ method: "POST" })
       priceLevel: p.priceLevel ? priceMap[p.priceLevel] : undefined,
       mapsUri: p.googleMapsUri,
       websiteUri: p.websiteUri,
+      location: p.location,
     }));
+
 
     // Sort: known price level asc, then by rating desc
     providers.sort((a, b) => {
