@@ -19,6 +19,8 @@ import { toast } from "sonner";
 import { FileText, Stethoscope, Building2, Upload, Download, Phone, Star, MapPin, ExternalLink } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { searchFuneralProviders } from "@/lib/funeral-providers.functions";
+import { FuneralProvidersMap } from "@/components/funeral-providers-map";
+
 
 export const Route = createFileRoute("/_app/cases/$caseId")({ component: CaseDetail });
 
