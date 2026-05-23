@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
-import { getCase, issueCmcd, validateAndIssueDeathCert, requestCorrections, scheduleFuneral, completeFuneral, openSuccession, closeSuccession } from "@/lib/cases.functions";
+import { getCase, issueCmcd, validateAndIssueDeathCert, requestCorrections, scheduleFuneral, completeFuneral, openSuccession } from "@/lib/cases.functions";
 import { uploadDocument, getDocumentDownloadUrl } from "@/lib/documents.functions";
 import { CaseStepper } from "@/components/case-stepper";
 import { DeadlineCard } from "@/components/deadline-card";
@@ -262,23 +262,16 @@ function NotaryPanel({ caseData, onChanged }: { caseData: any; onChanged: () => 
     onSuccess: () => { toast.success("Succesiune deschisă."); onChanged(); },
     onError: (e: any) => toast.error(e?.detail ?? e.message),
   });
-  const closeM = useMutation({
-    mutationFn: closeSuccession,
-    onSuccess: () => { toast.success("Certificat de moștenitor emis."); onChanged(); },
-    onError: (e: any) => toast.error(e?.detail ?? e.message),
-  });
 
   if (caseData.status === "SUCCESSION_OPEN") {
     return (
       <div className="rounded-xl border border-border bg-card p-6">
         <h2 className="mb-2 font-display text-lg font-semibold">Succesiune în curs</h2>
-        <p className="mb-4 text-sm text-muted-foreground">Moștenitori declarați: {caseData.succession?.heirs}</p>
-        <Button onClick={() => closeM.mutate({ case_id: caseData.id })} disabled={closeM.isPending} className="bg-brand-navy hover:bg-brand-navy/90">
-          {closeM.isPending ? "Se procesează..." : "Emite certificat de moștenitor și închide"}
-        </Button>
+        <p className="text-sm text-muted-foreground">Moștenitori declarați: {caseData.succession?.heirs}</p>
       </div>
     );
   }
+
 
   return (
     <form
