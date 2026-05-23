@@ -1,16 +1,30 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { listMyCases } from "@/lib/cases.functions";
+import { useAuth, primaryRole } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CASE_STATUS_LABELS } from "@/lib/legal";
 import { formatDateTimeRo } from "@/lib/format";
-import { Plus } from "lucide-react";
+import { Stethoscope } from "lucide-react";
 
 export const Route = createFileRoute("/_app/cases/")({ component: CasesPage });
 
 function CasesPage() {
   const { data, isLoading } = useQuery({ queryKey: ["cases"], queryFn: () => listMyCases() });
+  const { roles } = useAuth();
+  const role = primaryRole(roles);
+  const nav = useNavigate();
+  const count = data?.cases?.length ?? 0;
+
+  // The very first action for an aparținător is to notify the doctor.
+  // If they have no cases yet, jump straight to that screen.
+  useEffect(() => {
+    if (!isLoading && role === "family" && count === 0) {
+      nav({ to: "/cases/new", replace: true });
+    }
+  }, [isLoading, role, count, nav]);
 
   return (
     <div>
@@ -20,19 +34,16 @@ function CasesPage() {
           <p className="mt-1 text-sm text-muted-foreground">Toate dosarele la care aveți acces.</p>
         </div>
         <Link to="/cases/new">
-          <Button className="bg-brand-navy hover:bg-brand-navy/90"><Plus className="mr-2 size-4" />Deschide dosar nou</Button>
+          <Button className="bg-brand-navy hover:bg-brand-navy/90"><Stethoscope className="mr-2 size-4" />Notifică medicul</Button>
         </Link>
       </div>
 
       {isLoading && <p className="text-sm text-muted-foreground">Se încarcă...</p>}
 
-      {!isLoading && (data?.cases?.length ?? 0) === 0 && (
+      {!isLoading && count === 0 && role !== "family" && (
         <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center">
           <h3 className="font-display font-semibold">Nu aveți cazuri active</h3>
-          <p className="mt-2 text-sm text-muted-foreground">Începeți prin a deschide un dosar.</p>
-          <Link to="/cases/new" className="mt-4 inline-block">
-            <Button className="bg-brand-navy hover:bg-brand-navy/90">Deschide primul dosar</Button>
-          </Link>
+          <p className="mt-2 text-sm text-muted-foreground">Nu există dosare care vă sunt asociate momentan.</p>
         </div>
       )}
 
