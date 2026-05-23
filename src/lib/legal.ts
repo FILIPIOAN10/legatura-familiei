@@ -63,11 +63,14 @@ export const DOC_TYPE_LABELS: Record<string, string> = {
   funeral_contract: "Contract servicii funerare",
   inheritance_acceptance: "Acceptare moștenire",
   inheritance_certificate: "Certificat de moștenitor",
+  id_card_deceased: "CI/BI decedat",
+  id_card_declarant: "CI declarant",
   id_card: "Carte de identitate",
-  birth_certificate: "Certificat de naștere",
+  birth_certificate: "Certificat de naștere decedat",
   marriage_certificate: "Certificat de căsătorie",
   other: "Alt document",
 };
+
 
 export const ROMANIAN_COUNTIES = [
   "Alba", "Arad", "Argeș", "Bacău", "Bihor", "Bistrița-Năsăud", "Botoșani",
