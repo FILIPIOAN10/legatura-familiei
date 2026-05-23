@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { api, TOKEN_KEY, type ApiUser } from "@/lib/api";
 
-export type AppRole = "family" | "doctor" | "civil_officer" | "funeral_provider" | "notary" | "admin";
+export type AppRole = "family" | "doctor" | "civil_officer" | "funeral_provider" | "admin";
 
 const DEV_TOKEN_PREFIX = "__dev__";
 
@@ -12,7 +12,6 @@ export const DEV_USERS: Record<AppRole, ApiUser> = {
   doctor: { id: "dev-doctor", email: "demo.doctor@exitusro.ro", username: "demo_doctor", full_name: "Dr. Andrei Popescu", role: "doctor" },
   civil_officer: { id: "dev-civil", email: "demo.civil@exitusro.ro", username: "demo_civil", full_name: "Elena Vasilescu (Stare Civilă)", role: "civil_officer" },
   funeral_provider: { id: "dev-funeral", email: "demo.funeral@exitusro.ro", username: "demo_funeral", full_name: "Casa Funerară Liniștea", role: "funeral_provider" },
-  notary: { id: "dev-notary", email: "demo.notary@exitusro.ro", username: "demo_notary", full_name: "Notar Mihai Georgescu", role: "notary" },
   admin: { id: "dev-admin", email: "demo.admin@exitusro.ro", username: "demo_admin", full_name: "Administrator", role: "admin" },
 };
 
@@ -111,6 +110,6 @@ export function useAuth() {
 }
 
 export function primaryRole(roles: AppRole[]): AppRole {
-  const order: AppRole[] = ["admin", "doctor", "civil_officer", "notary", "funeral_provider", "family"];
+  const order: AppRole[] = ["admin", "doctor", "civil_officer", "funeral_provider", "family"];
   return order.find((r) => roles.includes(r)) ?? "family";
 }

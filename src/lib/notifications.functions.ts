@@ -34,7 +34,7 @@ function devWrite(list: any[]) { localStorage.setItem(DEV_KEY, JSON.stringify(li
 
 /** Push a notification targeted at one or more roles (or "all"). */
 export function devPushNotification(opts: {
-  audience: "family" | "doctor" | "civil_officer" | "funeral_provider" | "notary" | "all";
+  audience: "family" | "doctor" | "civil_officer" | "funeral_provider" | "all";
   title: string;
   body: string;
   type: string;

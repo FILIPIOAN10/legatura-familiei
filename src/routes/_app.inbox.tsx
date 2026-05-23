@@ -30,10 +30,6 @@ function Inbox() {
     pending = filter(["DEATH_CERT_ISSUED", "FUNERAL_SCHEDULED"]);
     title = "Inbox casă funerară";
     subtitle = "Familii cu certificat emis, pregătite pentru servicii funerare";
-  } else if (role === "notary") {
-    pending = filter(["FUNERAL_COMPLETED", "DEATH_CERT_ISSUED", "SUCCESSION_OPEN"]);
-    title = "Inbox notar";
-    subtitle = "Dosare eligibile pentru deschiderea succesiunii";
   } else {
     pending = data?.cases ?? [];
     subtitle = "Cazurile la care aveți acces";
