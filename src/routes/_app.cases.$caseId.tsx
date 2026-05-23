@@ -19,6 +19,8 @@ import { toast } from "sonner";
 import { FileText, Stethoscope, Building2, Upload, Download, Phone, Star, MapPin, ExternalLink } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { searchFuneralProviders } from "@/lib/funeral-providers.functions";
+import { FuneralProvidersMap } from "@/components/funeral-providers-map";
+
 
 export const Route = createFileRoute("/_app/cases/$caseId")({ component: CaseDetail });
 
@@ -393,6 +395,12 @@ function FuneralProviderPicker({ certNumber, city }: { certNumber?: string; city
         <p className="text-sm text-muted-foreground">Nu am găsit case funerare pentru „{city}” pe Google Maps.</p>
       )}
       {providers.length > 0 && (
+        <div className="mb-4">
+          <FuneralProvidersMap providers={providers} city={city} />
+        </div>
+      )}
+      {providers.length > 0 && (
+
         <ul className="space-y-3">
           {providers.map((p, i) => (
             <li key={p.id} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">

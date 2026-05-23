@@ -11,6 +11,8 @@ export type GoogleFuneralProvider = {
   priceLevel?: number;
   mapsUri?: string;
   websiteUri?: string;
+  location?: { latitude: number; longitude: number };
+
 };
 
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/google_maps";
@@ -32,7 +34,7 @@ export const searchFuneralProviders = createServerFn({ method: "POST" })
         "X-Connection-Api-Key": GOOGLE_MAPS_API_KEY,
         "Content-Type": "application/json",
         "X-Goog-FieldMask":
-          "places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.internationalPhoneNumber,places.rating,places.userRatingCount,places.priceLevel,places.googleMapsUri,places.websiteUri",
+          "places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.internationalPhoneNumber,places.rating,places.userRatingCount,places.priceLevel,places.googleMapsUri,places.websiteUri,places.location",
       },
       body: JSON.stringify({
         textQuery: `pompe funebre ${data.city}`,
@@ -54,7 +56,9 @@ export const searchFuneralProviders = createServerFn({ method: "POST" })
         priceLevel?: string;
         googleMapsUri?: string;
         websiteUri?: string;
+        location?: { latitude: number; longitude: number };
       }>;
+
     };
     if (!res.ok) {
       throw new Error(`Places searchText failed [${res.status}]: ${JSON.stringify(json)}`);
@@ -78,7 +82,9 @@ export const searchFuneralProviders = createServerFn({ method: "POST" })
       priceLevel: p.priceLevel ? priceMap[p.priceLevel] : undefined,
       mapsUri: p.googleMapsUri,
       websiteUri: p.websiteUri,
+      location: p.location,
     }));
+
 
     // Sort: known price level asc, then by rating desc
     providers.sort((a, b) => {
