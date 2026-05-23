@@ -1,68 +1,84 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
-import type { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { api, TOKEN_KEY, type ApiUser } from "@/lib/api";
 
 export type AppRole = "family" | "doctor" | "civil_officer" | "funeral_provider" | "notary" | "admin";
 
+interface AuthSession {
+  access_token: string;
+}
+
 interface AuthCtx {
-  session: Session | null;
-  user: User | null;
+  session: AuthSession | null;
+  user: ApiUser | null;
   roles: AppRole[];
   loading: boolean;
-  signOut: () => Promise<void>;
+  signIn: (token: string) => Promise<void>;
+  signOut: () => void;
   refreshRoles: () => Promise<void>;
 }
 
 const Ctx = createContext<AuthCtx | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [roles, setRoles] = useState<AppRole[]>([]);
+  const [session, setSession] = useState<AuthSession | null>(null);
+  const [user, setUser] = useState<ApiUser | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const qc = useQueryClient();
 
-  const loadRoles = async (userId: string) => {
-    const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
-    setRoles((data ?? []).map((r) => r.role as AppRole));
+  const clearAuth = () => {
+    localStorage.removeItem(TOKEN_KEY);
+    setSession(null);
+    setUser(null);
+  };
+
+  const fetchUser = async () => {
+    try {
+      const u = await api.me();
+      setUser(u);
+    } catch {
+      clearAuth();
+    }
+  };
+
+  const signIn = async (token: string) => {
+    localStorage.setItem(TOKEN_KEY, token);
+    setSession({ access_token: token });
+    await fetchUser();
+    router.invalidate();
+    qc.invalidateQueries();
+  };
+
+  const signOut = () => {
+    clearAuth();
+    router.invalidate();
+    qc.invalidateQueries();
+  };
+
+  const refreshRoles = async () => {
+    if (session) await fetchUser();
   };
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-      setSession(s);
-      if (s?.user) {
-        setTimeout(() => loadRoles(s.user.id), 0);
-      } else {
-        setRoles([]);
-      }
-      router.invalidate();
-      qc.invalidateQueries();
-    });
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      if (data.session?.user) loadRoles(data.session.user.id);
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (token) {
+      setSession({ access_token: token });
+      fetchUser().finally(() => setLoading(false));
+    } else {
       setLoading(false);
-    });
-    return () => sub.subscription.unsubscribe();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const value: AuthCtx = {
-    session,
-    user: session?.user ?? null,
-    roles,
-    loading,
-    signOut: async () => {
-      await supabase.auth.signOut();
-    },
-    refreshRoles: async () => {
-      if (session?.user) await loadRoles(session.user.id);
-    },
-  };
+  const roles: AppRole[] = user?.role ? [user.role as AppRole] : [];
 
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider value={{ session, user, roles, loading, signIn, signOut, refreshRoles }}>
+      {children}
+    </Ctx.Provider>
+  );
 }
 
 export function useAuth() {

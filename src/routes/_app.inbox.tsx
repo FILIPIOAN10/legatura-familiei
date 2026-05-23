@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { listMyCases } from "@/lib/cases.functions";
 import { useAuth, primaryRole } from "@/hooks/use-auth";
 import { CASE_STATUS_LABELS } from "@/lib/legal";
@@ -12,8 +11,7 @@ export const Route = createFileRoute("/_app/inbox")({ component: Inbox });
 function Inbox() {
   const { roles } = useAuth();
   const role = primaryRole(roles);
-  const fn = useServerFn(listMyCases);
-  const { data, isLoading } = useQuery({ queryKey: ["cases"], queryFn: () => fn() });
+  const { data, isLoading } = useQuery({ queryKey: ["cases"], queryFn: () => listMyCases() });
 
   const filter = (status: string[]) => (data?.cases ?? []).filter((c) => status.includes(c.status));
 

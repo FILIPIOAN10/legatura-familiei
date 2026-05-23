@@ -1,84 +1,46 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api, type ApiError } from "@/lib/api";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
-import { AlertCircle, Mail, ArrowRight, UserPlus } from "lucide-react";
-
-type ErrorType =
-  | "invalid_credentials"
-  | "email_not_confirmed"
-  | "user_not_found"
-  | "rate_limited"
-  | "network_error"
-  | "unknown";
+import { AlertCircle, UserPlus } from "lucide-react";
 
 interface AuthError {
-  type: ErrorType;
   title: string;
   message: string;
-  action?: {
-    label: string;
-    to?: string;
-    onClick?: () => void;
-  };
+  action?: { label: string; to?: string };
 }
 
-function parseAuthError(error: any, email: string): AuthError {
-  const code = error?.code || "";
-  const msg = error?.message || "";
+function parseError(err: unknown): AuthError {
+  const e = err as ApiError;
+  const detail = typeof e?.detail === "string" ? e.detail.toLowerCase() : "";
 
-  if (code === "email_not_confirmed" || /email.*not.*confirmed/i.test(msg)) {
+  if (e?.status === 401 || /incorrect|invalid|wrong|password|credentials/i.test(detail)) {
     return {
-      type: "email_not_confirmed",
-      title: "Email neconfirmat",
-      message:
-        "Contul a fost creat, dar adresa de email nu a fost validată încă. Verificați inbox-ul (și folderul Spam) pentru emailul de confirmare.",
-      action: { label: "Retrimite email de confirmare" },
-    };
-  }
-
-  if (
-    code === "invalid_credentials" ||
-    code === "user_not_found" ||
-    /invalid.*credentials/i.test(msg) ||
-    /user.*not.*found/i.test(msg) ||
-    /invalid.*login/i.test(msg)
-  ) {
-    return {
-      type: "invalid_credentials",
       title: "Date de autentificare incorecte",
-      message:
-        "Email-ul sau parola introdusă nu sunt corecte. Verificați tasta Caps Lock și încercați din nou.",
+      message: "Email-ul sau parola introdusă nu sunt corecte. Verificați tasta Caps Lock și încercați din nou.",
       action: { label: "Creează cont nou", to: "/auth/signup" },
     };
   }
-
-  if (code === "rate_limit" || /rate.*limit/i.test(msg) || /too.*many.*request/i.test(msg)) {
+  if (e?.status === 429 || /rate|too many/i.test(detail)) {
     return {
-      type: "rate_limited",
       title: "Prea multe încercări",
-      message:
-        "Ați încercat să vă autentificați de prea multe ori. Așteptați câteva minute înainte de a încerca din nou.",
+      message: "Ați încercat de prea multe ori. Așteptați câteva minute înainte de a încerca din nou.",
     };
   }
-
-  if (code === "network_error" || /network/i.test(msg) || /fetch/i.test(msg) || !navigator.onLine) {
+  if (!navigator.onLine || /network|fetch/i.test(detail)) {
     return {
-      type: "network_error",
       title: "Problemă de conexiune",
-      message:
-        "Nu s-a putut conecta la server. Verificați conexiunea la internet și încercați din nou.",
+      message: "Nu s-a putut conecta la server. Verificați conexiunea la internet și încercați din nou.",
     };
   }
-
   return {
-    type: "unknown",
     title: "Eroare la autentificare",
-    message: msg || "A apărut o eroare necunoscută. Încercați din nou mai târziu.",
+    message: (e as any)?.detail || "A apărut o eroare necunoscută. Încercați din nou mai târziu.",
   };
 }
 
@@ -98,40 +60,23 @@ function Login() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<AuthError | null>(null);
+  const auth = useAuth();
   const nav = useNavigate();
 
-  const resendConfirmation = async () => {
-    if (!email) return;
-    setBusy(true);
-    const { error: resendError } = await supabase.auth.resend({
-      type: "signup",
-      email,
-    });
-    setBusy(false);
-    if (resendError) {
-      toast.error(resendError.message || "Nu s-a putut retrimite emailul. Încercați mai târziu.");
-    } else {
-      toast.success("Email de confirmare retrimis! Verificați inbox-ul.");
-      setError(null);
-    }
-  };
-
-  const submit = async (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     setBusy(true);
-
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-    setBusy(false);
-
-    if (signInError) {
-      const parsed = parseAuthError(signInError, email);
-      setError(parsed);
-      return;
+    try {
+      const { access_token } = await api.login({ email, password });
+      await auth.signIn(access_token);
+      toast.success("Autentificare reușită");
+      nav({ to: "/cases" });
+    } catch (err) {
+      setError(parseError(err));
+    } finally {
+      setBusy(false);
     }
-
-    toast.success("Autentificare reușită");
-    nav({ to: "/cases" });
   };
 
   return (
@@ -149,43 +94,14 @@ function Login() {
             <AlertTitle>{error.title}</AlertTitle>
             <AlertDescription className="mt-1">
               {error.message}
-              {error.action && (
+              {error.action?.to && (
                 <div className="mt-2">
-                  {error.type === "email_not_confirmed" ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="mt-1 gap-1"
-                      onClick={resendConfirmation}
-                      disabled={busy}
-                    >
-                      <Mail className="h-3.5 w-3.5" />
+                  <Button variant="outline" size="sm" className="mt-1 gap-1" asChild>
+                    <Link to={error.action.to}>
+                      <UserPlus className="h-3.5 w-3.5" />
                       {error.action.label}
-                    </Button>
-                  ) : error.action.to ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="mt-1 gap-1"
-                      asChild
-                    >
-                      <Link to={error.action.to}>
-                        <UserPlus className="h-3.5 w-3.5" />
-                        {error.action.label}
-                      </Link>
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="mt-1 gap-1"
-                      onClick={error.action.onClick}
-                      disabled={busy}
-                    >
-                      <ArrowRight className="h-3.5 w-3.5" />
-                      {error.action.label}
-                    </Button>
-                  )}
+                    </Link>
+                  </Button>
                 </div>
               )}
             </AlertDescription>

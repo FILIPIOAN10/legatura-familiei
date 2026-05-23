@@ -1,6 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { createCase } from "@/lib/cases.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +12,6 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/_app/cases/new")({ component: NewCase });
 
 function NewCase() {
-  const fn = useServerFn(createCase);
   const nav = useNavigate();
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({
@@ -29,15 +27,15 @@ function NewCase() {
   });
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
-  const submit = async (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setBusy(true);
     try {
-      const res = await fn({ data: { ...form, deceased_dod: new Date(form.deceased_dod).toISOString() } });
+      const res = await createCase({ ...form, deceased_dod: new Date(form.deceased_dod).toISOString() });
       toast.success("Dosar creat. Medicul a fost notificat.");
       nav({ to: "/cases/$caseId", params: { caseId: res.case.id } });
     } catch (e: any) {
-      toast.error(e.message ?? "Eroare la creare");
+      toast.error(e?.detail ?? e?.message ?? "Eroare la creare");
     } finally {
       setBusy(false);
     }

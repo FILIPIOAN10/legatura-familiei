@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,24 +25,19 @@ function ResetPassword() {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const submit = async (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     setBusy(true);
-
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: typeof window !== "undefined" ? window.location.origin + "/auth/reset-password" : undefined,
-    });
-
-    setBusy(false);
-
-    if (resetError) {
-      setError(resetError.message || "Nu s-a putut trimite emailul de resetare. Încercați mai târziu.");
-      return;
+    try {
+      await api.post("/auth/forgot-password", { email });
+      setSent(true);
+      toast.success("Email de resetare trimis! Verificați inbox-ul.");
+    } catch (err: any) {
+      setError(err?.detail ?? "Nu s-a putut trimite emailul de resetare. Încercați mai târziu.");
+    } finally {
+      setBusy(false);
     }
-
-    setSent(true);
-    toast.success("Email de resetare trimis! Verificați inbox-ul.");
   };
 
   if (sent) {

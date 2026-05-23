@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { listNotifications, markNotificationRead } from "@/lib/notifications.functions";
 import { formatDateTimeRo } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -8,12 +7,10 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/_app/notifications")({ component: NotifPage });
 
 function NotifPage() {
-  const fn = useServerFn(listNotifications);
-  const markFn = useServerFn(markNotificationRead);
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: ["notifications"], queryFn: () => fn() });
+  const { data, isLoading } = useQuery({ queryKey: ["notifications"], queryFn: () => listNotifications() });
   const mark = useMutation({
-    mutationFn: markFn,
+    mutationFn: (id: string) => markNotificationRead({ id }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
   });
 
@@ -37,7 +34,7 @@ function NotifPage() {
                 <p className="mt-2 text-[11px] uppercase tracking-wide text-muted-foreground">{formatDateTimeRo(n.created_at)}</p>
               </div>
               {!n.read_at && (
-                <Button variant="ghost" size="sm" onClick={() => mark.mutate({ data: { id: n.id } })}>
+                <Button variant="ghost" size="sm" onClick={() => mark.mutate(n.id)}>
                   Marchează citită
                 </Button>
               )}

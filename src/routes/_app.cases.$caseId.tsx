@@ -1,10 +1,8 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { useRef, useState } from "react";
 import { getCase, issueCmcd, validateAndIssueDeathCert, requestCorrections } from "@/lib/cases.functions";
-import { registerUploadedDocument, getDocumentDownloadUrl } from "@/lib/documents.functions";
-import { supabase } from "@/integrations/supabase/client";
+import { uploadDocument, getDocumentDownloadUrl } from "@/lib/documents.functions";
 import { CaseStepper } from "@/components/case-stepper";
 import { DeadlineCard } from "@/components/deadline-card";
 import { useAuth, primaryRole } from "@/hooks/use-auth";
@@ -24,10 +22,9 @@ export const Route = createFileRoute("/_app/cases/$caseId")({ component: CaseDet
 
 function CaseDetail() {
   const { caseId } = Route.useParams();
-  const fn = useServerFn(getCase);
   const { data, isLoading } = useQuery({
     queryKey: ["case", caseId],
-    queryFn: () => fn({ data: { id: caseId } }),
+    queryFn: () => getCase(caseId),
   });
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Se încarcă dosarul...</p>;
@@ -53,7 +50,7 @@ function CaseDetail() {
         <div className="space-y-6 lg:col-span-2">
           <CaseStepper current={c.status} />
 
-          <ActionPanel caseData={c} onChanged={() => {}} />
+          <ActionPanel caseData={c} />
 
           <DocumentVault docs={data.documents} caseId={c.id} />
         </div>
@@ -98,38 +95,37 @@ function CaseDetail() {
   );
 }
 
-function ActionPanel({ caseData, onChanged }: { caseData: any; onChanged: () => void }) {
+function ActionPanel({ caseData }: { caseData: any }) {
   const { roles } = useAuth();
   const role = primaryRole(roles);
   const qc = useQueryClient();
   const invalidate = () => qc.invalidateQueries({ queryKey: ["case", caseData.id] });
 
-  const issueCmcdFn = useServerFn(issueCmcd);
-  const validateFn = useServerFn(validateAndIssueDeathCert);
-  const correctionsFn = useServerFn(requestCorrections);
-
   const issueM = useMutation({
-    mutationFn: issueCmcdFn,
+    mutationFn: issueCmcd,
     onSuccess: () => { toast.success("CMCD emis și transmis la Starea Civilă."); invalidate(); },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any) => toast.error(e?.detail ?? e.message),
   });
   const validateM = useMutation({
-    mutationFn: validateFn,
+    mutationFn: validateAndIssueDeathCert,
     onSuccess: (r: any) => { toast.success(`Certificat ${r.certificate_number} emis.`); invalidate(); },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any) => toast.error(e?.detail ?? e.message),
   });
   const correctionsM = useMutation({
-    mutationFn: correctionsFn,
+    mutationFn: requestCorrections,
     onSuccess: () => { toast.success("Solicitare trimisă."); invalidate(); },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any) => toast.error(e?.detail ?? e.message),
   });
 
-  // DOCTOR action
   if (role === "doctor" && caseData.status === "AWAITING_DOCTOR") {
-    return <DoctorIssueForm onSubmit={(d) => issueM.mutate({ data: { case_id: caseData.id, ...d } })} busy={issueM.isPending} />;
+    return (
+      <DoctorIssueForm
+        onSubmit={(d) => issueM.mutate({ case_id: caseData.id, ...d })}
+        busy={issueM.isPending}
+      />
+    );
   }
 
-  // CIVIL OFFICER action
   if (role === "civil_officer" && (caseData.status === "CMCD_ISSUED" || caseData.status === "AWAITING_CIVIL_OFFICER")) {
     return (
       <div className="rounded-xl border border-border bg-card p-6">
@@ -141,16 +137,19 @@ function ActionPanel({ caseData, onChanged }: { caseData: any; onChanged: () => 
           Verificați CMCD-ul și actele anexate. La validare se generează automat certificatul de deces și adeverința de înhumare.
         </p>
         <div className="flex flex-wrap gap-3">
-          <Button onClick={() => validateM.mutate({ data: { case_id: caseData.id } })} disabled={validateM.isPending} className="bg-brand-navy hover:bg-brand-navy/90">
+          <Button
+            onClick={() => validateM.mutate({ case_id: caseData.id })}
+            disabled={validateM.isPending}
+            className="bg-brand-navy hover:bg-brand-navy/90"
+          >
             {validateM.isPending ? "Se procesează..." : "Aprobă și emite certificat de deces"}
           </Button>
-          <CorrectionsDialog onSubmit={(reason) => correctionsM.mutate({ data: { case_id: caseData.id, reason } })} />
+          <CorrectionsDialog onSubmit={(reason) => correctionsM.mutate({ case_id: caseData.id, reason })} />
         </div>
       </div>
     );
   }
 
-  // FAMILY status
   return (
     <div className="rounded-xl border border-border bg-card p-6">
       <h2 className="mb-2 font-display text-lg font-semibold">Status curent</h2>
@@ -211,8 +210,6 @@ function CorrectionsDialog({ onSubmit }: { onSubmit: (reason: string) => void })
 
 function DocumentVault({ docs, caseId }: { docs: any[]; caseId: string }) {
   const qc = useQueryClient();
-  const registerFn = useServerFn(registerUploadedDocument);
-  const downloadFn = useServerFn(getDocumentDownloadUrl);
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [docType, setDocType] = useState<"id_card" | "birth_certificate" | "marriage_certificate" | "other">("other");
@@ -225,13 +222,7 @@ function DocumentVault({ docs, caseId }: { docs: any[]; caseId: string }) {
     if (!title.trim()) return toast.error("Adăugați un titlu.");
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop() ?? "bin";
-      const path = `${caseId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("case-documents").upload(path, file, {
-        contentType: file.type || "application/octet-stream",
-      });
-      if (upErr) throw upErr;
-      await registerFn({ data: { case_id: caseId, type: docType, title: title.trim(), storage_path: path } });
+      await uploadDocument(caseId, file, docType, title.trim());
       toast.success("Document încărcat.");
       setOpen(false);
       setTitle("");
@@ -246,10 +237,10 @@ function DocumentVault({ docs, caseId }: { docs: any[]; caseId: string }) {
 
   const handleDownload = async (id: string) => {
     try {
-      const res = await downloadFn({ data: { document_id: id } });
+      const res = await getDocumentDownloadUrl({ document_id: id });
       window.open(res.url, "_blank");
     } catch (e: any) {
-      toast.error(e.message ?? "Eroare la descărcare");
+      toast.error(e?.detail ?? e.message ?? "Eroare la descărcare");
     }
   };
 

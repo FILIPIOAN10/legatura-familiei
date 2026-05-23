@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { listMyCases } from "@/lib/cases.functions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,8 +10,7 @@ import { Plus } from "lucide-react";
 export const Route = createFileRoute("/_app/cases")({ component: CasesPage });
 
 function CasesPage() {
-  const fn = useServerFn(listMyCases);
-  const { data, isLoading } = useQuery({ queryKey: ["cases"], queryFn: () => fn() });
+  const { data, isLoading } = useQuery({ queryKey: ["cases"], queryFn: () => listMyCases() });
 
   return (
     <div>

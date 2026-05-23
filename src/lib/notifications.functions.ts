@@ -1,22 +1,9 @@
-import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { api } from "@/lib/api";
 
-export const listNotifications = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { data } = await context.supabase
-      .from("notifications")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(50);
-    return { notifications: data ?? [] };
-  });
+export async function listNotifications() {
+  return api.get<{ notifications: any[] }>("/notifications");
+}
 
-export const markNotificationRead = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
-  .handler(async ({ data, context }) => {
-    await context.supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", data.id);
-    return { ok: true };
-  });
+export async function markNotificationRead(data: { id: string }) {
+  return api.patch<{ ok: boolean }>(`/notifications/${data.id}/read`, {});
+}

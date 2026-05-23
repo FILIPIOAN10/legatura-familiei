@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,36 +22,39 @@ export const Route = createFileRoute("/auth/signup")({
 
 function Signup() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
   const [fullName, setFullName] = useState("");
+  const [password, setPassword] = useState("");
   const [role, setRole] = useState("family");
   const [busy, setBusy] = useState(false);
+  const auth = useAuth();
   const nav = useNavigate();
 
-  const submit = async (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setBusy(true);
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: typeof window !== "undefined" ? window.location.origin : undefined,
-        data: { full_name: fullName, role },
-      },
-    });
-    setBusy(false);
-    if (error) {
-      const code = (error as any).code;
-      if (code === "user_already_exists" || /already registered/i.test(error.message)) {
+    try {
+      const { access_token } = await api.register({
+        email,
+        username,
+        full_name: fullName,
+        password,
+        role,
+      });
+      await auth.signIn(access_token);
+      toast.success("Cont creat cu succes.");
+      nav({ to: "/cases" });
+    } catch (err: any) {
+      const detail = err?.detail ?? err?.message ?? "Eroare la crearea contului.";
+      if (/already|exists|duplicate/i.test(detail)) {
         toast.error("Există deja un cont cu acest email. Vă rugăm să vă autentificați.");
-        nav({ to: "/auth/login", search: { email } as any });
-        return;
+        nav({ to: "/auth/login" });
+      } else {
+        toast.error(detail);
       }
-      return toast.error(error.message);
+    } finally {
+      setBusy(false);
     }
-    toast.success("Cont creat. Vă autentificăm...");
-    await supabase.auth.signInWithPassword({ email, password });
-    nav({ to: "/cases" });
   };
 
   return (
@@ -60,9 +64,22 @@ function Signup() {
         <h1 className="font-display text-2xl font-bold">Creați un cont</h1>
         <p className="mt-1 text-sm text-muted-foreground">Vă rugăm completați datele dvs.</p>
         <form onSubmit={submit} className="mt-6 space-y-4">
-          <div><Label htmlFor="signup-name">Nume complet</Label><Input id="signup-name" required value={fullName} onChange={(e) => setFullName(e.target.value)} /></div>
-          <div><Label htmlFor="signup-email">Email</Label><Input id="signup-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
-          <div><Label htmlFor="signup-password">Parolă</Label><Input id="signup-password" type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} /></div>
+          <div>
+            <Label htmlFor="signup-name">Nume complet</Label>
+            <Input id="signup-name" required value={fullName} onChange={(e) => setFullName(e.target.value)} />
+          </div>
+          <div>
+            <Label htmlFor="signup-username">Nume de utilizator</Label>
+            <Input id="signup-username" required value={username} onChange={(e) => setUsername(e.target.value)} />
+          </div>
+          <div>
+            <Label htmlFor="signup-email">Email</Label>
+            <Input id="signup-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          </div>
+          <div>
+            <Label htmlFor="signup-password">Parolă</Label>
+            <Input id="signup-password" type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
+          </div>
           <div>
             <Label htmlFor="signup-role">Rol</Label>
             <Select value={role} onValueChange={setRole}>

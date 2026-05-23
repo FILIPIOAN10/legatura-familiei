@@ -1,67 +1,38 @@
-import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { api, TOKEN_KEY } from "@/lib/api";
 
-const DocTypes = z.enum([
-  "id_card",
-  "birth_certificate",
-  "marriage_certificate",
-  "other",
-]);
+export async function registerUploadedDocument(data: {
+  case_id: string;
+  type: "id_card" | "birth_certificate" | "marriage_certificate" | "other";
+  title: string;
+  storage_path: string;
+}) {
+  return api.post<{ ok: boolean }>("/documents", data);
+}
 
-export const registerUploadedDocument = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z
-      .object({
-        case_id: z.string().uuid(),
-        type: DocTypes,
-        title: z.string().min(2).max(200),
-        storage_path: z.string().min(3).max(500),
-      })
-      .parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    // Verify the user can see this case (RLS)
-    const { data: c } = await supabase.from("cases").select("id").eq("id", data.case_id).single();
-    if (!c) throw new Error("Nu aveți acces la acest dosar.");
-    const { error } = await supabase.from("documents").insert({
-      case_id: data.case_id,
-      type: data.type,
-      title: data.title,
-      uploaded_by: userId,
-      storage_path: data.storage_path,
-      signed: false,
-      metadata: { uploaded_via: "user" },
-    });
-    if (error) throw new Error(error.message);
-    await supabase.from("audit_log").insert({
-      case_id: data.case_id,
-      actor_id: userId,
-      action: "DOCUMENT_UPLOADED",
-      payload: { type: data.type, title: data.title },
-    });
-    return { ok: true };
+export async function getDocumentDownloadUrl(data: { document_id: string }) {
+  return api.get<{ url: string; title: string }>(`/documents/${data.document_id}/download-url`);
+}
+
+export async function uploadDocument(
+  caseId: string,
+  file: File,
+  type: string,
+  title: string,
+) {
+  const token = localStorage.getItem(TOKEN_KEY);
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("case_id", caseId);
+  formData.append("type", type);
+  formData.append("title", title);
+  const res = await fetch(`${api.baseUrl}/documents/upload`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
   });
-
-export const getDocumentDownloadUrl = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ document_id: z.string().uuid() }).parse(d))
-  .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    const { data: doc, error } = await supabase
-      .from("documents")
-      .select("id, storage_path, title")
-      .eq("id", data.document_id)
-      .single();
-    if (error || !doc) throw new Error("Document inexistent.");
-    if (!doc.storage_path) {
-      throw new Error("Document generat automat (nu există fișier încărcat).");
-    }
-    const { data: signed, error: sErr } = await supabase.storage
-      .from("case-documents")
-      .createSignedUrl(doc.storage_path, 300);
-    if (sErr) throw new Error(sErr.message);
-    return { url: signed.signedUrl, title: doc.title };
-  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(body.detail ?? "Eroare la încărcare");
+  }
+  return res.json();
+}
