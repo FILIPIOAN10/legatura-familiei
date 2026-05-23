@@ -20,7 +20,7 @@ import { Route as AppNotificationsRouteImport } from './routes/_app.notification
 import { Route as AppLegalLibraryRouteImport } from './routes/_app.legal-library'
 import { Route as AppInboxRouteImport } from './routes/_app.inbox'
 import { Route as AppEmergency24hRouteImport } from './routes/_app.emergency-24h'
-import { Route as AppCasesRouteImport } from './routes/_app.cases'
+import { Route as AppCasesIndexRouteImport } from './routes/_app.cases.index'
 import { Route as AppCasesNewRouteImport } from './routes/_app.cases.new'
 import { Route as AppCasesCaseIdRouteImport } from './routes/_app.cases.$caseId'
 
@@ -78,26 +78,25 @@ const AppEmergency24hRoute = AppEmergency24hRouteImport.update({
   path: '/emergency-24h',
   getParentRoute: () => AppRoute,
 } as any)
-const AppCasesRoute = AppCasesRouteImport.update({
-  id: '/cases',
-  path: '/cases',
+const AppCasesIndexRoute = AppCasesIndexRouteImport.update({
+  id: '/cases/',
+  path: '/cases/',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCasesNewRoute = AppCasesNewRouteImport.update({
-  id: '/new',
-  path: '/new',
-  getParentRoute: () => AppCasesRoute,
+  id: '/cases/new',
+  path: '/cases/new',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppCasesCaseIdRoute = AppCasesCaseIdRouteImport.update({
-  id: '/$caseId',
-  path: '/$caseId',
-  getParentRoute: () => AppCasesRoute,
+  id: '/cases/$caseId',
+  path: '/cases/$caseId',
+  getParentRoute: () => AppRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/cases': typeof AppCasesRouteWithChildren
   '/emergency-24h': typeof AppEmergency24hRoute
   '/inbox': typeof AppInboxRoute
   '/legal-library': typeof AppLegalLibraryRoute
@@ -108,11 +107,11 @@ export interface FileRoutesByFullPath {
   '/auth/signup': typeof AuthSignupRoute
   '/cases/$caseId': typeof AppCasesCaseIdRoute
   '/cases/new': typeof AppCasesNewRoute
+  '/cases/': typeof AppCasesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/cases': typeof AppCasesRouteWithChildren
   '/emergency-24h': typeof AppEmergency24hRoute
   '/inbox': typeof AppInboxRoute
   '/legal-library': typeof AppLegalLibraryRoute
@@ -123,13 +122,13 @@ export interface FileRoutesByTo {
   '/auth/signup': typeof AuthSignupRoute
   '/cases/$caseId': typeof AppCasesCaseIdRoute
   '/cases/new': typeof AppCasesNewRoute
+  '/cases': typeof AppCasesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/_app/cases': typeof AppCasesRouteWithChildren
   '/_app/emergency-24h': typeof AppEmergency24hRoute
   '/_app/inbox': typeof AppInboxRoute
   '/_app/legal-library': typeof AppLegalLibraryRoute
@@ -140,13 +139,13 @@ export interface FileRoutesById {
   '/auth/signup': typeof AuthSignupRoute
   '/_app/cases/$caseId': typeof AppCasesCaseIdRoute
   '/_app/cases/new': typeof AppCasesNewRoute
+  '/_app/cases/': typeof AppCasesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/sitemap.xml'
-    | '/cases'
     | '/emergency-24h'
     | '/inbox'
     | '/legal-library'
@@ -157,11 +156,11 @@ export interface FileRouteTypes {
     | '/auth/signup'
     | '/cases/$caseId'
     | '/cases/new'
+    | '/cases/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/sitemap.xml'
-    | '/cases'
     | '/emergency-24h'
     | '/inbox'
     | '/legal-library'
@@ -172,12 +171,12 @@ export interface FileRouteTypes {
     | '/auth/signup'
     | '/cases/$caseId'
     | '/cases/new'
+    | '/cases'
   id:
     | '__root__'
     | '/'
     | '/_app'
     | '/sitemap.xml'
-    | '/_app/cases'
     | '/_app/emergency-24h'
     | '/_app/inbox'
     | '/_app/legal-library'
@@ -188,6 +187,7 @@ export interface FileRouteTypes {
     | '/auth/signup'
     | '/_app/cases/$caseId'
     | '/_app/cases/new'
+    | '/_app/cases/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -278,60 +278,50 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppEmergency24hRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/cases': {
-      id: '/_app/cases'
+    '/_app/cases/': {
+      id: '/_app/cases/'
       path: '/cases'
-      fullPath: '/cases'
-      preLoaderRoute: typeof AppCasesRouteImport
+      fullPath: '/cases/'
+      preLoaderRoute: typeof AppCasesIndexRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/cases/new': {
       id: '/_app/cases/new'
-      path: '/new'
+      path: '/cases/new'
       fullPath: '/cases/new'
       preLoaderRoute: typeof AppCasesNewRouteImport
-      parentRoute: typeof AppCasesRoute
+      parentRoute: typeof AppRoute
     }
     '/_app/cases/$caseId': {
       id: '/_app/cases/$caseId'
-      path: '/$caseId'
+      path: '/cases/$caseId'
       fullPath: '/cases/$caseId'
       preLoaderRoute: typeof AppCasesCaseIdRouteImport
-      parentRoute: typeof AppCasesRoute
+      parentRoute: typeof AppRoute
     }
   }
 }
 
-interface AppCasesRouteChildren {
-  AppCasesCaseIdRoute: typeof AppCasesCaseIdRoute
-  AppCasesNewRoute: typeof AppCasesNewRoute
-}
-
-const AppCasesRouteChildren: AppCasesRouteChildren = {
-  AppCasesCaseIdRoute: AppCasesCaseIdRoute,
-  AppCasesNewRoute: AppCasesNewRoute,
-}
-
-const AppCasesRouteWithChildren = AppCasesRoute._addFileChildren(
-  AppCasesRouteChildren,
-)
-
 interface AppRouteChildren {
-  AppCasesRoute: typeof AppCasesRouteWithChildren
   AppEmergency24hRoute: typeof AppEmergency24hRoute
   AppInboxRoute: typeof AppInboxRoute
   AppLegalLibraryRoute: typeof AppLegalLibraryRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppSeedRoute: typeof AppSeedRoute
+  AppCasesCaseIdRoute: typeof AppCasesCaseIdRoute
+  AppCasesNewRoute: typeof AppCasesNewRoute
+  AppCasesIndexRoute: typeof AppCasesIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppCasesRoute: AppCasesRouteWithChildren,
   AppEmergency24hRoute: AppEmergency24hRoute,
   AppInboxRoute: AppInboxRoute,
   AppLegalLibraryRoute: AppLegalLibraryRoute,
   AppNotificationsRoute: AppNotificationsRoute,
   AppSeedRoute: AppSeedRoute,
+  AppCasesCaseIdRoute: AppCasesCaseIdRoute,
+  AppCasesNewRoute: AppCasesNewRoute,
+  AppCasesIndexRoute: AppCasesIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
