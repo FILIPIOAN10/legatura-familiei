@@ -16,8 +16,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { CASE_STATUS_LABELS, DOC_TYPE_LABELS } from "@/lib/legal";
 import { formatDateTimeRo, maskCnp } from "@/lib/format";
 import { toast } from "sonner";
-import { FileText, Stethoscope, Building2, Upload, Download, Phone, Star } from "lucide-react";
-import { getProvidersSortedByPrice } from "@/lib/funeral-providers";
+import { FileText, Stethoscope, Building2, Upload, Download, Phone, Star, MapPin, ExternalLink } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { searchFuneralProviders } from "@/lib/funeral-providers.functions";
 
 export const Route = createFileRoute("/_app/cases/$caseId")({ component: CaseDetail });
 
