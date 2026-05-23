@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
-import { getCase, issueCmcd, validateAndIssueDeathCert, requestCorrections, scheduleFuneral, completeFuneral, openSuccession, closeSuccession, archiveCase } from "@/lib/cases.functions";
+import { getCase, issueCmcd, validateAndIssueDeathCert, requestCorrections, scheduleFuneral, completeFuneral, openSuccession } from "@/lib/cases.functions";
 import { uploadDocument, getDocumentDownloadUrl } from "@/lib/documents.functions";
 import { CaseStepper } from "@/components/case-stepper";
 import { DeadlineCard } from "@/components/deadline-card";
@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { CASE_STATUS_LABELS, DOC_TYPE_LABELS } from "@/lib/legal";
-import { formatDateTimeRo, maskCnp } from "@/lib/format";
+import { formatDateTimeRo } from "@/lib/format";
 import { toast } from "sonner";
 import { FileText, Stethoscope, Building2, Upload, Download, Phone, Star, MapPin } from "lucide-react";
 import { FUNERAL_PROVIDERS } from "@/lib/funeral-providers";
@@ -44,7 +44,7 @@ function CaseDetail() {
         </div>
         <h1 className="font-display text-3xl font-bold text-foreground">{c.deceased_full_name}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          CNP: {maskCnp(c.deceased_cnp)} • Deces: {formatDateTimeRo(c.deceased_dod)} • {c.city ?? "—"}, {c.county ?? "—"}
+          Deces: {formatDateTimeRo(c.deceased_dod)} • {c.city ?? "—"}, {c.county ?? "—"}
         </p>
       </div>
 
@@ -139,18 +139,25 @@ function ActionPanel({ caseData }: { caseData: any }) {
       <div className="rounded-xl border border-border bg-card p-6">
         <div className="mb-4 flex items-center gap-2">
           <Building2 className="size-5 text-brand-navy" />
-          <h2 className="font-display text-lg font-semibold">Validare la Starea Civilă</h2>
+          <h2 className="font-display text-lg font-semibold">Înregistrare în SIIEASC</h2>
         </div>
-        <p className="mb-6 text-sm text-muted-foreground">
-          Verificați CMCD-ul și actele anexate. La validare se generează automat certificatul de deces și adeverința de înhumare.
+        <p className="mb-4 text-sm text-muted-foreground">
+          Verificați CMCD-ul și actele anexate (CI/BI decedat, certificat de naștere, certificat de căsătorie, CI declarant).
+          La validare se înregistrează decesul în <strong>SIIEASC</strong> (Sistemul Informatic Integrat pentru Emiterea Actelor de Stare Civilă),
+          se generează actul de deces și certificatul de deces, și, dacă e cazul, adeverința de înhumare.
         </p>
+        <ul className="mb-6 space-y-1 text-xs text-muted-foreground">
+          <li>✓ CMCD primit de la medic</li>
+          <li>✓ Acte aparținător încărcate în seif</li>
+          <li>→ Înregistrare în SIIEASC și emitere certificat</li>
+        </ul>
         <div className="flex flex-wrap gap-3">
           <Button
             onClick={() => validateM.mutate({ case_id: caseData.id })}
             disabled={validateM.isPending}
             className="bg-brand-navy hover:bg-brand-navy/90"
           >
-            {validateM.isPending ? "Se procesează..." : "Aprobă și emite certificat de deces"}
+            {validateM.isPending ? "Se înregistrează în SIIEASC..." : "Înregistrează în SIIEASC și emite certificat"}
           </Button>
           <CorrectionsDialog onSubmit={(reason) => correctionsM.mutate({ case_id: caseData.id, reason })} />
         </div>
@@ -158,12 +165,12 @@ function ActionPanel({ caseData }: { caseData: any }) {
     );
   }
 
-  if (role === "family" && isClujNapoca(caseData.city, caseData.county)) {
-    return <FuneralProviderPicker certNumber={caseData.certificate_number} city={caseData.city} status={caseData.status} />;
+  if (role === "family" && caseData.status === "DEATH_CERT_ISSUED" && isClujNapoca(caseData.city, caseData.county)) {
+    return <FuneralProviderPicker certNumber={caseData.certificate_number} status={caseData.status} />;
   }
 
   if (role === "civil_officer" && caseData.status === "DEATH_CERT_ISSUED" && isClujNapoca(caseData.city, caseData.county)) {
-    return <FuneralProviderPicker certNumber={caseData.certificate_number} city={caseData.city} status={caseData.status} />;
+    return <FuneralProviderPicker certNumber={caseData.certificate_number} status={caseData.status} />;
   }
 
   if (role === "family" && caseData.status === "DEATH_CERT_ISSUED") {
@@ -185,37 +192,6 @@ function ActionPanel({ caseData }: { caseData: any }) {
     return <NotaryPanel caseData={caseData} onChanged={invalidate} />;
   }
 
-  if (caseData.status === "SUCCESSION_CLOSED") {
-    return (
-      <div className="rounded-xl border-2 border-brand-sage bg-brand-sage/5 p-6">
-        <div className="mb-2 flex items-center gap-2">
-          <span className="flex size-7 items-center justify-center rounded-full bg-brand-sage text-white">✓</span>
-          <h2 className="font-display text-lg font-semibold text-brand-navy">Dosar finalizat</h2>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Toate etapele legale au fost parcurse. Certificatul de moștenitor a fost emis și succesiunea este închisă.
-          {role === "civil_officer" ? " Puteți arhiva oficial dosarul." : " Dosarul așteaptă arhivare oficială de către Starea Civilă."}
-        </p>
-        {role === "civil_officer" && <ArchiveButton caseId={caseData.id} onDone={invalidate} />}
-      </div>
-    );
-  }
-
-  if (caseData.status === "ARCHIVED") {
-    return (
-      <div className="rounded-xl border border-border bg-muted/30 p-6">
-        <div className="mb-2 flex items-center gap-2">
-          <span className="flex size-7 items-center justify-center rounded-full bg-brand-navy text-white">🗄</span>
-          <h2 className="font-display text-lg font-semibold text-brand-navy">Dosar arhivat</h2>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Dosarul a fost arhivat oficial de Starea Civilă{caseData.archived_at ? ` la ${formatDateTimeRo(caseData.archived_at)}` : ""}.
-          Documentele rămân disponibile pentru consultare.
-        </p>
-      </div>
-    );
-  }
-
   return (
     <div className="rounded-xl border border-border bg-card p-6">
       <h2 className="mb-2 font-display text-lg font-semibold">Status curent</h2>
@@ -227,24 +203,11 @@ function ActionPanel({ caseData }: { caseData: any }) {
         {role === "family" && caseData.status === "FUNERAL_SCHEDULED" && " Casa funerară a programat serviciul. Detalii în jurnalul de acțiuni."}
         {role === "family" && caseData.status === "FUNERAL_COMPLETED" && " Înmormântarea s-a finalizat. Puteți deschide succesiunea la notar."}
         {role === "family" && caseData.status === "SUCCESSION_OPEN" && " Notarul instrumentează dosarul de succesiune."}
-        {role === "family" && caseData.status === "SUCCESSION_CLOSED" && " Procedura succesorală este finalizată."}
       </p>
     </div>
   );
 }
 
-function ArchiveButton({ caseId, onDone }: { caseId: string; onDone: () => void }) {
-  const m = useMutation({
-    mutationFn: archiveCase,
-    onSuccess: () => { toast.success("Dosar arhivat oficial."); onDone(); },
-    onError: (e: any) => toast.error(e?.detail ?? e.message),
-  });
-  return (
-    <Button onClick={() => m.mutate({ case_id: caseId })} disabled={m.isPending} className="mt-4 bg-brand-navy hover:bg-brand-navy/90">
-      {m.isPending ? "Se arhivează..." : "Arhivează dosarul"}
-    </Button>
-  );
-}
 
 function FuneralPanel({ caseData, onScheduled, onCompleted }: { caseData: any; onScheduled: () => void; onCompleted: () => void }) {
   const [date, setDate] = useState("");
@@ -299,23 +262,16 @@ function NotaryPanel({ caseData, onChanged }: { caseData: any; onChanged: () => 
     onSuccess: () => { toast.success("Succesiune deschisă."); onChanged(); },
     onError: (e: any) => toast.error(e?.detail ?? e.message),
   });
-  const closeM = useMutation({
-    mutationFn: closeSuccession,
-    onSuccess: () => { toast.success("Certificat de moștenitor emis."); onChanged(); },
-    onError: (e: any) => toast.error(e?.detail ?? e.message),
-  });
 
   if (caseData.status === "SUCCESSION_OPEN") {
     return (
       <div className="rounded-xl border border-border bg-card p-6">
         <h2 className="mb-2 font-display text-lg font-semibold">Succesiune în curs</h2>
-        <p className="mb-4 text-sm text-muted-foreground">Moștenitori declarați: {caseData.succession?.heirs}</p>
-        <Button onClick={() => closeM.mutate({ case_id: caseData.id })} disabled={closeM.isPending} className="bg-brand-navy hover:bg-brand-navy/90">
-          {closeM.isPending ? "Se procesează..." : "Emite certificat de moștenitor și închide"}
-        </Button>
+        <p className="text-sm text-muted-foreground">Moștenitori declarați: {caseData.succession?.heirs}</p>
       </div>
     );
   }
+
 
   return (
     <form
@@ -382,7 +338,7 @@ function CorrectionsDialog({ onSubmit }: { onSubmit: (reason: string) => void })
   );
 }
 
-function FuneralProviderPicker({ certNumber, city, status }: { certNumber?: string; city?: string; status?: string }) {
+function FuneralProviderPicker({ certNumber, status }: { certNumber?: string; status?: string }) {
   const providers = FUNERAL_PROVIDERS
     .filter((p) => p.city.toLowerCase().includes("cluj"))
     .sort((a, b) => a.priceFrom - b.priceFrom);
@@ -447,7 +403,7 @@ function DocumentVault({ docs, caseId }: { docs: any[]; caseId: string }) {
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const [docType, setDocType] = useState<"id_card" | "birth_certificate" | "marriage_certificate" | "other">("other");
+  const [docType, setDocType] = useState<string>("id_card_deceased");
   const [title, setTitle] = useState("");
   const [open, setOpen] = useState(false);
 
@@ -496,12 +452,13 @@ function DocumentVault({ docs, caseId }: { docs: any[]; caseId: string }) {
               <div className="space-y-4">
                 <div>
                   <Label>Tip document</Label>
-                  <Select value={docType} onValueChange={(v) => setDocType(v as any)}>
+                  <Select value={docType} onValueChange={(v) => setDocType(v)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="id_card">Carte de identitate</SelectItem>
-                      <SelectItem value="birth_certificate">Certificat de naștere</SelectItem>
+                      <SelectItem value="id_card_deceased">CI/BI decedat</SelectItem>
+                      <SelectItem value="birth_certificate">Certificat de naștere decedat</SelectItem>
                       <SelectItem value="marriage_certificate">Certificat de căsătorie</SelectItem>
+                      <SelectItem value="id_card_declarant">CI declarant</SelectItem>
                       <SelectItem value="other">Alt document</SelectItem>
                     </SelectContent>
                   </Select>
@@ -511,8 +468,8 @@ function DocumentVault({ docs, caseId }: { docs: any[]; caseId: string }) {
                   <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: CI decedat" />
                 </div>
                 <div>
-                  <Label>Fișier (PDF, JPG, PNG)</Label>
-                  <Input ref={fileRef} type="file" accept=".pdf,.jpg,.jpeg,.png" />
+                  <Label>Fișier (doar PDF)</Label>
+                  <Input ref={fileRef} type="file" accept="application/pdf,.pdf" />
                 </div>
               </div>
               <DialogFooter>
