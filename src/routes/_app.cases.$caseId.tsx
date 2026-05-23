@@ -158,8 +158,12 @@ function ActionPanel({ caseData }: { caseData: any }) {
     );
   }
 
-  if ((role === "family" || role === "civil_officer") && caseData.status === "DEATH_CERT_ISSUED" && isClujNapoca(caseData.city, caseData.county)) {
-    return <FuneralProviderPicker certNumber={caseData.certificate_number} city={caseData.city} />;
+  if (role === "family" && isClujNapoca(caseData.city, caseData.county)) {
+    return <FuneralProviderPicker certNumber={caseData.certificate_number} city={caseData.city} status={caseData.status} />;
+  }
+
+  if (role === "civil_officer" && caseData.status === "DEATH_CERT_ISSUED" && isClujNapoca(caseData.city, caseData.county)) {
+    return <FuneralProviderPicker certNumber={caseData.certificate_number} city={caseData.city} status={caseData.status} />;
   }
 
   if (role === "family" && caseData.status === "DEATH_CERT_ISSUED") {
@@ -378,20 +382,22 @@ function CorrectionsDialog({ onSubmit }: { onSubmit: (reason: string) => void })
   );
 }
 
-function FuneralProviderPicker({ certNumber, city }: { certNumber?: string; city?: string }) {
+function FuneralProviderPicker({ certNumber, city, status }: { certNumber?: string; city?: string; status?: string }) {
   const providers = FUNERAL_PROVIDERS
     .filter((p) => p.city.toLowerCase().includes("cluj"))
     .sort((a, b) => a.priceFrom - b.priceFrom);
+  const certIssued = status === "DEATH_CERT_ISSUED";
 
   return (
     <div className="rounded-xl border-2 border-brand-sage bg-brand-sage/5 p-6">
       <div className="mb-2 flex items-center gap-2">
         <Building2 className="size-5 text-brand-navy" />
-        <h2 className="font-display text-lg font-semibold text-brand-navy">Alegeți o casă funerară</h2>
+        <h2 className="font-display text-lg font-semibold text-brand-navy">Case funerare recomandate în Cluj-Napoca</h2>
       </div>
       <p className="mb-5 text-sm text-muted-foreground">
-        Certificatul de deces {certNumber ? <span className="font-mono">{certNumber}</span> : ""} a fost emis.
-        {city ? ` Mai jos găsiți case funerare din ${city}, sortate după preț (cel mai accesibil întâi).` : ""}
+        {certIssued
+          ? <>Certificatul de deces {certNumber ? <span className="font-mono">{certNumber}</span> : ""} a fost emis. Mai jos găsiți {providers.length} case funerare din Cluj-Napoca, sortate crescător după preț.</>
+          : <>Mai jos găsiți {providers.length} case funerare din Cluj-Napoca, sortate crescător după preț. Puteți contacta oricând o casă funerară pentru informații.</>}
       </p>
       {providers.length === 0 && (
         <p className="text-sm text-muted-foreground">Nu există case funerare listate pentru Cluj-Napoca.</p>
