@@ -5,8 +5,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ROLE_LABELS } from "@/lib/legal";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth/signup")({
@@ -28,8 +26,10 @@ function Signup() {
   const [username, setUsername] = useState("test_user");
   const [fullName, setFullName] = useState("Ion Popescu");
   const [password, setPassword] = useState("password123");
-  const [role, setRole] = useState("family");
   const [busy, setBusy] = useState(false);
+  // Public signup is only for aparținători. Other roles (medic, stare civilă,
+  // casă funerară) are provisioned separately and not exposed in this flow.
+  const role = "family";
   const auth = useAuth();
   const nav = useNavigate();
 
@@ -83,17 +83,10 @@ function Signup() {
             <Label htmlFor="signup-password">Parolă</Label>
             <Input id="signup-password" type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
           </div>
-          <div>
-            <Label htmlFor="signup-role">Rol</Label>
-            <Select value={role} onValueChange={setRole}>
-              <SelectTrigger id="signup-role"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {Object.entries(ROLE_LABELS).filter(([k]) => k !== "admin").map(([k, v]) => (
-                  <SelectItem key={k} value={k}>{v}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <p className="text-xs text-muted-foreground">
+            Contul se creează ca <strong className="text-brand-navy">Aparținător</strong>. Medicii,
+            funcționarii de stare civilă și casele funerare sunt configurați separat.
+          </p>
           <Button type="submit" disabled={busy} className="w-full bg-brand-navy hover:bg-brand-navy/90">
             {busy ? "Se procesează..." : "Creează cont"}
           </Button>
