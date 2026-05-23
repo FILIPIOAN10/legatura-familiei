@@ -10,11 +10,6 @@ export const LEGAL_REFS = {
     text: "Înhumarea/incinerarea se face între 24h și 72h de la deces",
     ref: "L. 102/2014",
   },
-  successionFree: {
-    days: 730,
-    text: "Dezbaterea succesiunii fără taxe suplimentare",
-    ref: "C. Fiscal art. 111 alin. (3)",
-  },
   funeralAid: {
     text: "Ajutor de înmormântare",
     ref: "L. 263/2010",
@@ -29,9 +24,6 @@ export const CASE_STATUS_LABELS: Record<string, string> = {
   DEATH_CERT_ISSUED: "Certificat deces emis",
   FUNERAL_SCHEDULED: "Înmormântare programată",
   FUNERAL_COMPLETED: "Înmormântare finalizată",
-  SUCCESSION_OPEN: "Succesiune deschisă",
-  SUCCESSION_CLOSED: "Succesiune închisă",
-  ARCHIVED: "Arhivat",
 };
 
 export const CASE_STATUS_ORDER = [
@@ -49,7 +41,6 @@ export const ROLE_LABELS: Record<string, string> = {
   doctor: "Medic constatator",
   civil_officer: "Funcționar Stare Civilă",
   funeral_provider: "Casă funerară",
-  notary: "Notar public",
   admin: "Administrator",
 };
 
@@ -59,8 +50,6 @@ export const DOC_TYPE_LABELS: Record<string, string> = {
   burial_permit: "Adeverință de înhumare",
   parquet_release: "Eliberare parchet",
   funeral_contract: "Contract servicii funerare",
-  inheritance_acceptance: "Acceptare moștenire",
-  inheritance_certificate: "Certificat de moștenitor",
   id_card_deceased: "CI/BI decedat",
   id_card_declarant: "CI declarant",
   id_card: "Carte de identitate",

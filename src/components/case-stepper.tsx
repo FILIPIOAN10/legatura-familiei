@@ -9,9 +9,6 @@ const SHORT: Record<string, string> = {
   DEATH_CERT_ISSUED: "Certificat",
   FUNERAL_SCHEDULED: "Înmormântare",
   FUNERAL_COMPLETED: "Finalizat",
-  SUCCESSION_OPEN: "Succesiune",
-  SUCCESSION_CLOSED: "Închis",
-  ARCHIVED: "Arhivă",
 };
 
 export function CaseStepper({ current }: { current: string }) {

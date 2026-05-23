@@ -125,7 +125,6 @@ export async function validateAndIssueDeathCert(data: { case_id: string }) {
     const c = devRead().find((x) => x.id === data.case_id);
     devPushNotification({ audience: "family", title: "Certificat de deces emis", body: `Certificatul ${cert} este disponibil în dosarul ${c?.case_number}. Puteți contacta o casă funerară.`, type: "death_cert", case_id: data.case_id });
     devPushNotification({ audience: "funeral_provider", title: "Familie disponibilă pentru servicii funerare", body: `Familia ${c?.deceased_full_name} (dosar ${c?.case_number}) poate fi contactată — certificat emis.`, type: "funeral_lead", case_id: data.case_id });
-    devPushNotification({ audience: "notary", title: "Posibilă succesiune", body: `Dosarul ${c?.case_number} are certificatul emis. La cererea familiei puteți deschide procedura succesorală.`, type: "notary_lead", case_id: data.case_id });
     return { ok: true, certificate_number: cert };
   }
   return api.post<{ ok: boolean; certificate_number: string }>(`/cases/${data.case_id}/death-certificate`, {});
@@ -160,38 +159,4 @@ export async function completeFuneral(data: { case_id: string }) {
     return { ok: true };
   }
   return api.post<{ ok: boolean }>(`/cases/${data.case_id}/funeral/complete`, {});
-}
-
-export async function openSuccession(data: { case_id: string; heirs: string }) {
-  if (isDev()) {
-    setStatus(data.case_id, "SUCCESSION_OPEN", { succession: data });
-    pushAudit(data.case_id, `Succesiune deschisă — moștenitori declarați: ${data.heirs}`);
-    const c = devRead().find((x) => x.id === data.case_id);
-    devPushNotification({ audience: "family", title: "Succesiune deschisă la notar", body: `Notarul a deschis dosarul de succesiune pentru ${c?.case_number}.`, type: "succession_open", case_id: data.case_id });
-    return { ok: true };
-  }
-  return api.post<{ ok: boolean }>(`/cases/${data.case_id}/succession`, data);
-}
-
-export async function closeSuccession(data: { case_id: string }) {
-  if (isDev()) {
-    setStatus(data.case_id, "SUCCESSION_CLOSED");
-    pushAudit(data.case_id, "Certificat de moștenitor emis — succesiune închisă");
-    const c = devRead().find((x) => x.id === data.case_id);
-    devPushNotification({ audience: "family", title: "Certificat de moștenitor emis", body: `Procedura succesorală pentru dosarul ${c?.case_number} este finalizată.`, type: "succession_closed", case_id: data.case_id });
-    devPushNotification({ audience: "civil_officer", title: "Dosar gata de arhivare", body: `Dosarul ${c?.case_number} (${c?.deceased_full_name}) poate fi arhivat oficial.`, type: "archive_ready", case_id: data.case_id });
-    return { ok: true };
-  }
-  return api.post<{ ok: boolean }>(`/cases/${data.case_id}/succession/close`, {});
-}
-
-export async function archiveCase(data: { case_id: string }) {
-  if (isDev()) {
-    setStatus(data.case_id, "ARCHIVED", { archived_at: new Date().toISOString() });
-    pushAudit(data.case_id, "Dosar arhivat oficial de Starea Civilă");
-    const c = devRead().find((x) => x.id === data.case_id);
-    devPushNotification({ audience: "family", title: "Dosar arhivat", body: `Dosarul ${c?.case_number} a fost arhivat oficial. Rămâne disponibil pentru consultare.`, type: "archived", case_id: data.case_id });
-    return { ok: true };
-  }
-  return api.post<{ ok: boolean }>(`/cases/${data.case_id}/archive`, {});
 }
