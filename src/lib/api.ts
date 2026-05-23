@@ -1,31 +1,27 @@
-const API_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:8000";
+const API_BASE_URL =
+  (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:8080";
 
-export const TOKEN_KEY = "api_access_token";
+export const AUTH_PRESENT_COOKIE = "auth_present";
+
+export function hasAuthCookie(): boolean {
+  if (typeof document === "undefined") return false;
+  return document.cookie
+    .split(";")
+    .map((c) => c.trim())
+    .some((c) => c.startsWith(`${AUTH_PRESENT_COOKIE}=`));
+}
 
 export interface LoginPayload {
   email: string;
   password: string;
 }
 
-export interface RegisterPayload {
-  email: string;
-  username: string;
-  full_name: string;
-  password: string;
-  role: string;
-}
-
-export interface TokenResponse {
-  access_token: string;
-  token_type: string;
-}
-
 export interface ApiUser {
-  id: string;
+  id: number;
   email: string;
   username: string;
   full_name: string;
-  role: string;
+  role: "family" | "doctor" | "civil_officer" | "funeral_provider" | "notary" | "admin";
 }
 
 export interface ApiError {
@@ -34,24 +30,28 @@ export interface ApiError {
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const token = localStorage.getItem(TOKEN_KEY);
   const hasBody = options?.body != null;
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
+    credentials: "include",
     headers: {
       ...(hasBody ? { "Content-Type": "application/json" } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options?.headers,
     },
   });
   if (!res.ok) {
-    const body = await res.json().catch(() => ({ detail: res.statusText }));
-    const err: ApiError = {
-      status: res.status,
-      detail: typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail),
-    };
+    let detail = res.statusText;
+    try {
+      const body = await res.json();
+      if (typeof body?.detail === "string") detail = body.detail;
+      else if (typeof body?.message === "string") detail = body.message;
+    } catch {
+      // body is not json, keep status text
+    }
+    const err: ApiError = { status: res.status, detail };
     throw err;
   }
+  if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
 
@@ -59,18 +59,15 @@ export const api = {
   baseUrl: API_BASE_URL,
 
   login: (payload: LoginPayload) =>
-    request<TokenResponse>("/auth/login", {
+    request<ApiUser>("/api/auth/login", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
 
-  register: (payload: RegisterPayload) =>
-    request<TokenResponse>("/auth/register", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
+  logout: () =>
+    request<void>("/api/auth/logout", { method: "POST" }),
 
-  me: () => request<ApiUser>("/users/me"),
+  me: () => request<ApiUser>("/api/auth/me"),
 
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, body: unknown) =>

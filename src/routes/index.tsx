@@ -54,12 +54,6 @@ function Landing() {
           ))}
         </div>
 
-        <div className="mt-16 rounded-xl border border-brand-sage/20 bg-brand-sage/5 p-6">
-          <p className="text-sm text-muted-foreground">
-            Pentru a vedea platforma cu date demo (familie, medic, funcționar), accesați{" "}
-            <Link to="/seed" className="font-semibold text-brand-navy hover:underline">/seed</Link> după autentificare.
-          </p>
-        </div>
       </main>
     </div>
   );

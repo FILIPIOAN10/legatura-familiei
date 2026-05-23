@@ -15,7 +15,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthSignupRouteImport } from './routes/auth.signup'
 import { Route as AuthResetPasswordRouteImport } from './routes/auth.reset-password'
 import { Route as AuthLoginRouteImport } from './routes/auth.login'
-import { Route as AppSeedRouteImport } from './routes/_app.seed'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
 import { Route as AppLegalLibraryRouteImport } from './routes/_app.legal-library'
 import { Route as AppInboxRouteImport } from './routes/_app.inbox'
@@ -52,11 +51,6 @@ const AuthLoginRoute = AuthLoginRouteImport.update({
   id: '/auth/login',
   path: '/auth/login',
   getParentRoute: () => rootRouteImport,
-} as any)
-const AppSeedRoute = AppSeedRouteImport.update({
-  id: '/seed',
-  path: '/seed',
-  getParentRoute: () => AppRoute,
 } as any)
 const AppNotificationsRoute = AppNotificationsRouteImport.update({
   id: '/notifications',
@@ -101,7 +95,6 @@ export interface FileRoutesByFullPath {
   '/inbox': typeof AppInboxRoute
   '/legal-library': typeof AppLegalLibraryRoute
   '/notifications': typeof AppNotificationsRoute
-  '/seed': typeof AppSeedRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/signup': typeof AuthSignupRoute
@@ -116,7 +109,6 @@ export interface FileRoutesByTo {
   '/inbox': typeof AppInboxRoute
   '/legal-library': typeof AppLegalLibraryRoute
   '/notifications': typeof AppNotificationsRoute
-  '/seed': typeof AppSeedRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/signup': typeof AuthSignupRoute
@@ -133,7 +125,6 @@ export interface FileRoutesById {
   '/_app/inbox': typeof AppInboxRoute
   '/_app/legal-library': typeof AppLegalLibraryRoute
   '/_app/notifications': typeof AppNotificationsRoute
-  '/_app/seed': typeof AppSeedRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/signup': typeof AuthSignupRoute
@@ -150,7 +141,6 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/legal-library'
     | '/notifications'
-    | '/seed'
     | '/auth/login'
     | '/auth/reset-password'
     | '/auth/signup'
@@ -165,7 +155,6 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/legal-library'
     | '/notifications'
-    | '/seed'
     | '/auth/login'
     | '/auth/reset-password'
     | '/auth/signup'
@@ -181,7 +170,6 @@ export interface FileRouteTypes {
     | '/_app/inbox'
     | '/_app/legal-library'
     | '/_app/notifications'
-    | '/_app/seed'
     | '/auth/login'
     | '/auth/reset-password'
     | '/auth/signup'
@@ -243,13 +231,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_app/seed': {
-      id: '/_app/seed'
-      path: '/seed'
-      fullPath: '/seed'
-      preLoaderRoute: typeof AppSeedRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/notifications': {
       id: '/_app/notifications'
       path: '/notifications'
@@ -307,7 +288,6 @@ interface AppRouteChildren {
   AppInboxRoute: typeof AppInboxRoute
   AppLegalLibraryRoute: typeof AppLegalLibraryRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
-  AppSeedRoute: typeof AppSeedRoute
   AppCasesCaseIdRoute: typeof AppCasesCaseIdRoute
   AppCasesNewRoute: typeof AppCasesNewRoute
   AppCasesIndexRoute: typeof AppCasesIndexRoute
@@ -318,7 +298,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppInboxRoute: AppInboxRoute,
   AppLegalLibraryRoute: AppLegalLibraryRoute,
   AppNotificationsRoute: AppNotificationsRoute,
-  AppSeedRoute: AppSeedRoute,
   AppCasesCaseIdRoute: AppCasesCaseIdRoute,
   AppCasesNewRoute: AppCasesNewRoute,
   AppCasesIndexRoute: AppCasesIndexRoute,

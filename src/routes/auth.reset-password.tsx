@@ -1,6 +1,6 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useState } from "react";
-import { api, TOKEN_KEY } from "@/lib/api";
+import { api, hasAuthCookie } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +10,7 @@ import { MailCheck, AlertCircle, ArrowLeft } from "lucide-react";
 
 export const Route = createFileRoute("/auth/reset-password")({
   beforeLoad: () => {
-    if (localStorage.getItem(TOKEN_KEY)) throw redirect({ to: "/cases" });
+    if (hasAuthCookie()) throw redirect({ to: "/cases" });
   },
   head: () => ({
     meta: [
@@ -33,7 +33,7 @@ function ResetPassword() {
     setError(null);
     setBusy(true);
     try {
-      await api.post("/auth/forgot-password", { email });
+      await api.post("/api/auth/forgot-password", { email });
       setSent(true);
       toast.success("Email de resetare trimis! Verificați inbox-ul.");
     } catch (err: any) {
