@@ -7,7 +7,7 @@ import { CASE_STATUS_LABELS } from "@/lib/legal";
 import { formatDateTimeRo } from "@/lib/format";
 import { Plus } from "lucide-react";
 
-export const Route = createFileRoute("/_app/cases")({ component: CasesPage });
+export const Route = createFileRoute("/_app/cases/")({ component: CasesPage });
 
 function CasesPage() {
   const { data, isLoading } = useQuery({ queryKey: ["cases"], queryFn: () => listMyCases() });
