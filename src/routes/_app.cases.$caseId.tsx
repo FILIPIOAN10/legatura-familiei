@@ -99,6 +99,12 @@ function CaseDetail() {
   );
 }
 
+function isClujNapoca(city?: string, county?: string) {
+  const c = (city ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/-/g, " ");
+  const j = (county ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return j.includes("cluj") && (c.includes("cluj napoca") || c.includes("cluj"));
+}
+
 function ActionPanel({ caseData }: { caseData: any }) {
   const { roles } = useAuth();
   const role = primaryRole(roles);
