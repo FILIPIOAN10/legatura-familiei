@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /auth/
+Disallow: /cases
+Disallow: /inbox
+Disallow: /notifications
+Disallow: /seed
+
+Sitemap: https://legatura-familiei.lovable.app/sitemap.xml
