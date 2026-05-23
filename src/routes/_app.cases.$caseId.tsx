@@ -44,7 +44,7 @@ function CaseDetail() {
         </div>
         <h1 className="font-display text-3xl font-bold text-foreground">{c.deceased_full_name}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          CNP: {maskCnp(c.deceased_cnp)} • Deces: {formatDateTimeRo(c.deceased_dod)} • {c.city ?? "—"}, {c.county ?? "—"}
+          Deces: {formatDateTimeRo(c.deceased_dod)} • {c.city ?? "—"}, {c.county ?? "—"}
         </p>
       </div>
 
