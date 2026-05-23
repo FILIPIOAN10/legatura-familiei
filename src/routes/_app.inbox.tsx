@@ -23,17 +23,13 @@ function Inbox() {
     title = "Inbox medic constatator";
     subtitle = "Cazuri în așteptarea emiterii CMCD";
   } else if (role === "civil_officer") {
-    pending = filter(["CMCD_ISSUED", "AWAITING_CIVIL_OFFICER"]);
+    pending = filter(["AWAITING_CIVIL_OFFICER"]);
     title = "Inbox Stare Civilă";
-    subtitle = "Cazuri ce așteaptă validare și emitere certificat de deces";
+    subtitle = "Cazuri cu CMCD emis și acte încărcate, care așteaptă înregistrarea în SIIEASC și emiterea certificatului de deces";
   } else if (role === "funeral_provider") {
     pending = filter(["DEATH_CERT_ISSUED", "FUNERAL_SCHEDULED"]);
     title = "Inbox casă funerară";
     subtitle = "Familii cu certificat emis, pregătite pentru servicii funerare";
-  } else if (role === "notary") {
-    pending = filter(["FUNERAL_COMPLETED", "DEATH_CERT_ISSUED", "SUCCESSION_OPEN"]);
-    title = "Inbox notar";
-    subtitle = "Dosare eligibile pentru deschiderea succesiunii";
   } else {
     pending = data?.cases ?? [];
     subtitle = "Cazurile la care aveți acces";

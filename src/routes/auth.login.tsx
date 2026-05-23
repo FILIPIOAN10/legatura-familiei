@@ -67,7 +67,7 @@ function Login() {
   const auth = useAuth();
   const nav = useNavigate();
 
-  const devSkip = (role: "family" | "doctor" | "civil_officer" | "funeral_provider" | "notary") => {
+  const devSkip = (role: "family" | "doctor" | "civil_officer" | "funeral_provider") => {
     auth.devLoginAs?.(role);
     nav({ to: role === "family" ? "/cases" : "/inbox" });
   };
@@ -171,11 +171,10 @@ function Login() {
             </p>
             <div className="grid grid-cols-1 gap-2">
               {[
-                { role: "family" as const, label: "Aparținător (familie)", hint: "Deschide dosar, urmărește pașii" },
+                { role: "family" as const, label: "Aparținător (familie)", hint: "Notifică medicul, urmărește pașii" },
                 { role: "doctor" as const, label: "Medic constatator", hint: "Emite CMCD" },
                 { role: "civil_officer" as const, label: "Funcționar Stare Civilă", hint: "Validează & emite certificat" },
                 { role: "funeral_provider" as const, label: "Casă funerară", hint: "Programează înmormântarea" },
-                { role: "notary" as const, label: "Notar public", hint: "Deschide succesiunea" },
               ].map((r) => (
                 <Button
                   key={r.role}

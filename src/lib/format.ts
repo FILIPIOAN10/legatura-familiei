@@ -1,9 +1,3 @@
-export function maskCnp(cnp: string | null | undefined): string {
-  if (!cnp) return "—";
-  if (cnp.length < 4) return "•••";
-  return "•".repeat(cnp.length - 4) + cnp.slice(-4);
-}
-
 export function formatDateRo(d: string | Date | null | undefined): string {
   if (!d) return "—";
   const date = typeof d === "string" ? new Date(d) : d;

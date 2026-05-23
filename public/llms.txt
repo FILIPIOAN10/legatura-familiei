@@ -1,8 +1,8 @@
 # ExitusRO
 
-> Platformă digitală care însoțește familiile, medicii, funcționarii de stare civilă și notarii prin întregul flux administrativ post-deces din România — de la Certificatul Medical Constatator al Decesului (CMCD) până la certificatul de moștenitor.
+> Platformă digitală care însoțește familiile, medicii, funcționarii de stare civilă și casele funerare prin întregul flux administrativ post-deces din România — de la Certificatul Medical Constatator al Decesului (CMCD) până la certificatul de deces și organizarea înmormântării.
 
-ExitusRO digitalizează procedurile cerute de Legea 119/1996 (acte de stare civilă), Legea 102/2014 (servicii funerare), Legea 263/2010 (ajutor de înmormântare), Legea 36/1995 (notari) și Codul Civil (succesiuni). Platforma monitorizează termenele legale și păstrează toate documentele într-un singur dosar securizat.
+ExitusRO digitalizează procedurile cerute de Legea 119/1996 (acte de stare civilă), Legea 102/2014 (servicii funerare) și Legea 263/2010 (ajutor de înmormântare). Platforma monitorizează termenele legale și păstrează toate documentele într-un singur dosar securizat.
 
 ## Pages
 

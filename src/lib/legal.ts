@@ -10,11 +10,6 @@ export const LEGAL_REFS = {
     text: "Înhumarea/incinerarea se face între 24h și 72h de la deces",
     ref: "L. 102/2014",
   },
-  successionFree: {
-    days: 730,
-    text: "Dezbaterea succesiunii fără taxe suplimentare",
-    ref: "C. Fiscal art. 111 alin. (3)",
-  },
   funeralAid: {
     text: "Ajutor de înmormântare",
     ref: "L. 263/2010",
@@ -24,23 +19,29 @@ export const LEGAL_REFS = {
 export const CASE_STATUS_LABELS: Record<string, string> = {
   DRAFT: "Ciornă",
   AWAITING_DOCTOR: "Așteaptă medic",
-  CMCD_ISSUED: "CMCD emis",
+  CMCD_ISSUED: "Încarcă acte",
   AWAITING_CIVIL_OFFICER: "La Starea Civilă",
   DEATH_CERT_ISSUED: "Certificat deces emis",
   FUNERAL_SCHEDULED: "Înmormântare programată",
   FUNERAL_COMPLETED: "Înmormântare finalizată",
-  SUCCESSION_OPEN: "Succesiune deschisă",
-  SUCCESSION_CLOSED: "Succesiune închisă",
-  ARCHIVED: "Arhivat",
 };
 
+// Steps shown in the case stepper (5 visible boxes). FUNERAL_COMPLETED is
+// the terminal state of the last box and is handled separately.
 export const CASE_STATUS_ORDER = [
   "AWAITING_DOCTOR",
   "CMCD_ISSUED",
   "AWAITING_CIVIL_OFFICER",
   "DEATH_CERT_ISSUED",
   "FUNERAL_SCHEDULED",
-  "FUNERAL_COMPLETED",
+] as const;
+
+// Documents the family must upload before the case can move to the civil
+// officer. The marriage certificate is collected separately when relevant.
+export const REQUIRED_FAMILY_DOC_TYPES = [
+  "id_card_deceased",
+  "birth_certificate",
+  "id_card_declarant",
 ] as const;
 
 
@@ -49,7 +50,6 @@ export const ROLE_LABELS: Record<string, string> = {
   doctor: "Medic constatator",
   civil_officer: "Funcționar Stare Civilă",
   funeral_provider: "Casă funerară",
-  notary: "Notar public",
   admin: "Administrator",
 };
 
@@ -59,8 +59,6 @@ export const DOC_TYPE_LABELS: Record<string, string> = {
   burial_permit: "Adeverință de înhumare",
   parquet_release: "Eliberare parchet",
   funeral_contract: "Contract servicii funerare",
-  inheritance_acceptance: "Acceptare moștenire",
-  inheritance_certificate: "Certificat de moștenitor",
   id_card_deceased: "CI/BI decedat",
   id_card_declarant: "CI declarant",
   id_card: "Carte de identitate",

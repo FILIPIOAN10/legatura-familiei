@@ -1,10 +1,18 @@
 import { api, TOKEN_KEY } from "@/lib/api";
 import { getDevDocumentsForCase } from "@/lib/documents.functions";
 import { devPushNotification } from "@/lib/notifications.functions";
+import { REQUIRED_FAMILY_DOC_TYPES } from "@/lib/legal";
+
+export class FlowGuardError extends Error {
+  detail: string;
+  constructor(detail: string) {
+    super(detail);
+    this.detail = detail;
+  }
+}
 
 export interface CreateCasePayload {
   deceased_full_name: string;
-  deceased_cnp?: string;
   deceased_dob?: string;
   deceased_dod: string;
   death_location?: string;
@@ -81,10 +89,13 @@ function devGet(id: string) {
     { id: `${id}-t1`, title: "Eliberare CMCD de către medic", legal_reference: "Ord. MS 1147/2012",
       legal_deadline: new Date(dod + 1000 * 60 * 60 * 48).toISOString(),
       status: done(["CMCD_ISSUED", "AWAITING_CIVIL_OFFICER", "DEATH_CERT_ISSUED", "FUNERAL_SCHEDULED", "FUNERAL_COMPLETED"]) },
-    { id: `${id}-t2`, title: "Declarare la Starea Civilă & emitere certificat de deces", legal_reference: "L. 119/1996 art. 35",
+    { id: `${id}-t2`, title: "Încărcare acte aparținător", legal_reference: "L. 119/1996 art. 35",
+      legal_deadline: new Date(dod + 1000 * 60 * 60 * 60).toISOString(),
+      status: done(["AWAITING_CIVIL_OFFICER", "DEATH_CERT_ISSUED", "FUNERAL_SCHEDULED", "FUNERAL_COMPLETED"]) },
+    { id: `${id}-t3`, title: "Emitere certificat de deces (SIIEASC)", legal_reference: "L. 119/1996 art. 35",
       legal_deadline: new Date(dod + 1000 * 60 * 60 * 72).toISOString(),
       status: done(["DEATH_CERT_ISSUED", "FUNERAL_SCHEDULED", "FUNERAL_COMPLETED"]) },
-    { id: `${id}-t3`, title: "Programare servicii funerare", legal_reference: "L. 102/2014",
+    { id: `${id}-t4`, title: "Programare servicii funerare", legal_reference: "L. 102/2014",
       legal_deadline: null,
       status: done(["FUNERAL_SCHEDULED", "FUNERAL_COMPLETED"]) },
   ];
@@ -111,22 +122,70 @@ export async function issueCmcd(data: { case_id: string; cause_main: string; cau
     setStatus(data.case_id, "CMCD_ISSUED", { cmcd: data, cmcd_issued_at: new Date().toISOString() });
     pushAudit(data.case_id, `CMCD emis de medic — cauză: ${data.cause_main}`);
     const c = devRead().find((x) => x.id === data.case_id);
-    devPushNotification({ audience: "family", title: "CMCD a fost emis", body: `Medicul a emis Certificatul Medical pentru dosarul ${c?.case_number}. Trimis automat la Starea Civilă.`, type: "cmcd_issued", case_id: data.case_id });
-    devPushNotification({ audience: "civil_officer", title: "CMCD nou de validat", body: `Dosarul ${c?.case_number} (${c?.deceased_full_name}) așteaptă validare.`, type: "civil_pending", case_id: data.case_id });
+    devPushNotification({
+      audience: "family",
+      title: "CMCD a fost emis",
+      body: `Medicul a emis Certificatul Medical pentru dosarul ${c?.case_number}. Încărcați acum actele necesare (CI/BI decedat, certificat naștere, CI declarant și, dacă e cazul, certificat căsătorie).`,
+      type: "cmcd_issued",
+      case_id: data.case_id,
+    });
     return { ok: true };
   }
   return api.post<{ ok: boolean }>(`/cases/${data.case_id}/cmcd`, data);
 }
 
+export async function submitDocumentsToCivilOfficer(data: { case_id: string }) {
+  if (isDev()) {
+    const c = devRead().find((x) => x.id === data.case_id);
+    if (!c) throw new FlowGuardError("Dosar inexistent.");
+    if (c.status !== "CMCD_ISSUED") {
+      throw new FlowGuardError("Actele pot fi trimise doar după emiterea CMCD.");
+    }
+    const docs = getDevDocumentsForCase(data.case_id);
+    const uploaded = new Set(docs.map((d) => d.type));
+    const missing = REQUIRED_FAMILY_DOC_TYPES.filter((t) => !uploaded.has(t));
+    if (missing.length > 0) {
+      throw new FlowGuardError("Trebuie încărcate toate actele obligatorii înainte de a trimite dosarul la Starea Civilă.");
+    }
+    setStatus(data.case_id, "AWAITING_CIVIL_OFFICER", { docs_submitted_at: new Date().toISOString() });
+    pushAudit(data.case_id, "Acte aparținător trimise spre validare la Starea Civilă");
+    devPushNotification({
+      audience: "civil_officer",
+      title: "Dosar gata de validare",
+      body: `Dosarul ${c.case_number} (${c.deceased_full_name}) are CMCD-ul și actele aparținătorului încărcate. Verificați și emiteți certificatul de deces.`,
+      type: "civil_pending",
+      case_id: data.case_id,
+    });
+    devPushNotification({
+      audience: "family",
+      title: "Acte trimise la Starea Civilă",
+      body: `Dosarul ${c.case_number} a fost transmis funcționarului de stare civilă. Vă vom notifica imediat ce certificatul de deces este gata.`,
+      type: "docs_submitted",
+      case_id: data.case_id,
+    });
+    return { ok: true };
+  }
+  return api.post<{ ok: boolean }>(`/cases/${data.case_id}/submit-documents`, {});
+}
+
 export async function validateAndIssueDeathCert(data: { case_id: string }) {
   const cert = `RO-${new Date().getFullYear()}-${Math.floor(Math.random() * 900000 + 100000)}`;
   if (isDev()) {
+    const c = devRead().find((x) => x.id === data.case_id);
+    if (!c) throw new FlowGuardError("Dosar inexistent.");
+    if (c.status !== "AWAITING_CIVIL_OFFICER") {
+      throw new FlowGuardError("Certificatul poate fi emis doar după ce aparținătorul a trimis actele la Starea Civilă.");
+    }
+    const docs = getDevDocumentsForCase(data.case_id);
+    const uploaded = new Set(docs.map((d) => d.type));
+    const missing = REQUIRED_FAMILY_DOC_TYPES.filter((t) => !uploaded.has(t));
+    if (missing.length > 0) {
+      throw new FlowGuardError("Dosarul nu conține toate actele obligatorii. Solicitați aparținătorului să completeze.");
+    }
     setStatus(data.case_id, "DEATH_CERT_ISSUED", { certificate_number: cert, cert_issued_at: new Date().toISOString() });
     pushAudit(data.case_id, `Certificat de deces ${cert} emis de Starea Civilă`);
-    const c = devRead().find((x) => x.id === data.case_id);
-    devPushNotification({ audience: "family", title: "Certificat de deces emis", body: `Certificatul ${cert} este disponibil în dosarul ${c?.case_number}. Puteți contacta o casă funerară.`, type: "death_cert", case_id: data.case_id });
-    devPushNotification({ audience: "funeral_provider", title: "Familie disponibilă pentru servicii funerare", body: `Familia ${c?.deceased_full_name} (dosar ${c?.case_number}) poate fi contactată — certificat emis.`, type: "funeral_lead", case_id: data.case_id });
-    devPushNotification({ audience: "notary", title: "Posibilă succesiune", body: `Dosarul ${c?.case_number} are certificatul emis. La cererea familiei puteți deschide procedura succesorală.`, type: "notary_lead", case_id: data.case_id });
+    devPushNotification({ audience: "family", title: "Certificat de deces emis", body: `Certificatul ${cert} este disponibil în dosarul ${c.case_number}. Puteți contacta o casă funerară.`, type: "death_cert", case_id: data.case_id });
+    devPushNotification({ audience: "funeral_provider", title: "Familie disponibilă pentru servicii funerare", body: `Familia ${c.deceased_full_name} (dosar ${c.case_number}) poate fi contactată — certificat emis.`, type: "funeral_lead", case_id: data.case_id });
     return { ok: true, certificate_number: cert };
   }
   return api.post<{ ok: boolean; certificate_number: string }>(`/cases/${data.case_id}/death-certificate`, {});
@@ -161,38 +220,4 @@ export async function completeFuneral(data: { case_id: string }) {
     return { ok: true };
   }
   return api.post<{ ok: boolean }>(`/cases/${data.case_id}/funeral/complete`, {});
-}
-
-export async function openSuccession(data: { case_id: string; heirs: string }) {
-  if (isDev()) {
-    setStatus(data.case_id, "SUCCESSION_OPEN", { succession: data });
-    pushAudit(data.case_id, `Succesiune deschisă — moștenitori declarați: ${data.heirs}`);
-    const c = devRead().find((x) => x.id === data.case_id);
-    devPushNotification({ audience: "family", title: "Succesiune deschisă la notar", body: `Notarul a deschis dosarul de succesiune pentru ${c?.case_number}.`, type: "succession_open", case_id: data.case_id });
-    return { ok: true };
-  }
-  return api.post<{ ok: boolean }>(`/cases/${data.case_id}/succession`, data);
-}
-
-export async function closeSuccession(data: { case_id: string }) {
-  if (isDev()) {
-    setStatus(data.case_id, "SUCCESSION_CLOSED");
-    pushAudit(data.case_id, "Certificat de moștenitor emis — succesiune închisă");
-    const c = devRead().find((x) => x.id === data.case_id);
-    devPushNotification({ audience: "family", title: "Certificat de moștenitor emis", body: `Procedura succesorală pentru dosarul ${c?.case_number} este finalizată.`, type: "succession_closed", case_id: data.case_id });
-    devPushNotification({ audience: "civil_officer", title: "Dosar gata de arhivare", body: `Dosarul ${c?.case_number} (${c?.deceased_full_name}) poate fi arhivat oficial.`, type: "archive_ready", case_id: data.case_id });
-    return { ok: true };
-  }
-  return api.post<{ ok: boolean }>(`/cases/${data.case_id}/succession/close`, {});
-}
-
-export async function archiveCase(data: { case_id: string }) {
-  if (isDev()) {
-    setStatus(data.case_id, "ARCHIVED", { archived_at: new Date().toISOString() });
-    pushAudit(data.case_id, "Dosar arhivat oficial de Starea Civilă");
-    const c = devRead().find((x) => x.id === data.case_id);
-    devPushNotification({ audience: "family", title: "Dosar arhivat", body: `Dosarul ${c?.case_number} a fost arhivat oficial. Rămâne disponibil pentru consultare.`, type: "archived", case_id: data.case_id });
-    return { ok: true };
-  }
-  return api.post<{ ok: boolean }>(`/cases/${data.case_id}/archive`, {});
 }

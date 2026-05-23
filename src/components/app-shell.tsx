@@ -10,7 +10,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const navItems: { to: string; label: string; show: boolean }[] = [
     { to: "/cases", label: "Cazurile mele", show: roles.includes("family") },
-    { to: "/inbox", label: "Inbox", show: roles.includes("doctor") || roles.includes("civil_officer") || roles.includes("notary") || roles.includes("funeral_provider") },
+    { to: "/inbox", label: "Inbox", show: roles.includes("doctor") || roles.includes("civil_officer") || roles.includes("funeral_provider") },
     { to: "/notifications", label: "Notificări", show: true },
     { to: "/legal-library", label: "Bibliotecă legală", show: true },
     { to: "/emergency-24h", label: "Primele 24h", show: roles.includes("family") },

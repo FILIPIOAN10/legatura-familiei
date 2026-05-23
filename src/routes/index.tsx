@@ -5,9 +5,9 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "ExitusRO — Proceduri digitale post-deces în România" },
-      { name: "description", content: "Platformă care însoțește familiile, medicii și funcționarii prin pașii legali după un deces: CMCD, certificat de deces, înmormântare, succesiune." },
+      { name: "description", content: "Platformă care însoțește familiile, medicii și funcționarii prin pașii legali după un deces: CMCD, certificat de deces și înmormântare." },
       { property: "og:title", content: "ExitusRO — Proceduri digitale post-deces" },
-      { property: "og:description", content: "De la CMCD la certificatul de moștenitor, cu termene legale monitorizate." },
+      { property: "og:description", content: "De la CMCD la certificatul de deces și înmormântare, cu termene legale monitorizate." },
       { property: "og:url", content: "https://legatura-familiei.lovable.app/" },
     ],
     links: [{ rel: "canonical", href: "https://legatura-familiei.lovable.app/" }],
@@ -34,7 +34,7 @@ function Landing() {
         </h1>
         <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground">
           ExitusRO digitalizează întregul proces administrativ post-deces — de la certificatul medical constatator,
-          la certificatul de deces, înmormântare și succesiune. Cu respect, claritate și termene legale monitorizate.
+          la certificatul de deces și organizarea înmormântării. Cu respect, claritate și termene legale monitorizate.
         </p>
         <div className="mt-10 flex flex-wrap gap-3">
           <Link to="/auth/signup"><Button size="lg" className="bg-brand-navy hover:bg-brand-navy/90">Începe un dosar</Button></Link>
