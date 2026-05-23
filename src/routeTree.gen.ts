@@ -9,38 +9,179 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthSignupRouteImport } from './routes/auth.signup'
+import { Route as AuthLoginRouteImport } from './routes/auth.login'
+import { Route as AppSeedRouteImport } from './routes/_app.seed'
+import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
+import { Route as AppLegalLibraryRouteImport } from './routes/_app.legal-library'
+import { Route as AppInboxRouteImport } from './routes/_app.inbox'
+import { Route as AppEmergency24hRouteImport } from './routes/_app.emergency-24h'
+import { Route as AppCasesRouteImport } from './routes/_app.cases'
+import { Route as AppCasesNewRouteImport } from './routes/_app.cases.new'
+import { Route as AppCasesCaseIdRouteImport } from './routes/_app.cases.$caseId'
 
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthSignupRoute = AuthSignupRouteImport.update({
+  id: '/auth/signup',
+  path: '/auth/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthLoginRoute = AuthLoginRouteImport.update({
+  id: '/auth/login',
+  path: '/auth/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppSeedRoute = AppSeedRouteImport.update({
+  id: '/seed',
+  path: '/seed',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppNotificationsRoute = AppNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLegalLibraryRoute = AppLegalLibraryRouteImport.update({
+  id: '/legal-library',
+  path: '/legal-library',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppInboxRoute = AppInboxRouteImport.update({
+  id: '/inbox',
+  path: '/inbox',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppEmergency24hRoute = AppEmergency24hRouteImport.update({
+  id: '/emergency-24h',
+  path: '/emergency-24h',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCasesRoute = AppCasesRouteImport.update({
+  id: '/cases',
+  path: '/cases',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCasesNewRoute = AppCasesNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AppCasesRoute,
+} as any)
+const AppCasesCaseIdRoute = AppCasesCaseIdRouteImport.update({
+  id: '/$caseId',
+  path: '/$caseId',
+  getParentRoute: () => AppCasesRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/cases': typeof AppCasesRouteWithChildren
+  '/emergency-24h': typeof AppEmergency24hRoute
+  '/inbox': typeof AppInboxRoute
+  '/legal-library': typeof AppLegalLibraryRoute
+  '/notifications': typeof AppNotificationsRoute
+  '/seed': typeof AppSeedRoute
+  '/auth/login': typeof AuthLoginRoute
+  '/auth/signup': typeof AuthSignupRoute
+  '/cases/$caseId': typeof AppCasesCaseIdRoute
+  '/cases/new': typeof AppCasesNewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/cases': typeof AppCasesRouteWithChildren
+  '/emergency-24h': typeof AppEmergency24hRoute
+  '/inbox': typeof AppInboxRoute
+  '/legal-library': typeof AppLegalLibraryRoute
+  '/notifications': typeof AppNotificationsRoute
+  '/seed': typeof AppSeedRoute
+  '/auth/login': typeof AuthLoginRoute
+  '/auth/signup': typeof AuthSignupRoute
+  '/cases/$caseId': typeof AppCasesCaseIdRoute
+  '/cases/new': typeof AppCasesNewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_app': typeof AppRouteWithChildren
+  '/_app/cases': typeof AppCasesRouteWithChildren
+  '/_app/emergency-24h': typeof AppEmergency24hRoute
+  '/_app/inbox': typeof AppInboxRoute
+  '/_app/legal-library': typeof AppLegalLibraryRoute
+  '/_app/notifications': typeof AppNotificationsRoute
+  '/_app/seed': typeof AppSeedRoute
+  '/auth/login': typeof AuthLoginRoute
+  '/auth/signup': typeof AuthSignupRoute
+  '/_app/cases/$caseId': typeof AppCasesCaseIdRoute
+  '/_app/cases/new': typeof AppCasesNewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/cases'
+    | '/emergency-24h'
+    | '/inbox'
+    | '/legal-library'
+    | '/notifications'
+    | '/seed'
+    | '/auth/login'
+    | '/auth/signup'
+    | '/cases/$caseId'
+    | '/cases/new'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/cases'
+    | '/emergency-24h'
+    | '/inbox'
+    | '/legal-library'
+    | '/notifications'
+    | '/seed'
+    | '/auth/login'
+    | '/auth/signup'
+    | '/cases/$caseId'
+    | '/cases/new'
+  id:
+    | '__root__'
+    | '/'
+    | '/_app'
+    | '/_app/cases'
+    | '/_app/emergency-24h'
+    | '/_app/inbox'
+    | '/_app/legal-library'
+    | '/_app/notifications'
+    | '/_app/seed'
+    | '/auth/login'
+    | '/auth/signup'
+    | '/_app/cases/$caseId'
+    | '/_app/cases/new'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AppRoute: typeof AppRouteWithChildren
+  AuthLoginRoute: typeof AuthLoginRoute
+  AuthSignupRoute: typeof AuthSignupRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,11 +189,118 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/signup': {
+      id: '/auth/signup'
+      path: '/auth/signup'
+      fullPath: '/auth/signup'
+      preLoaderRoute: typeof AuthSignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/login': {
+      id: '/auth/login'
+      path: '/auth/login'
+      fullPath: '/auth/login'
+      preLoaderRoute: typeof AuthLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/seed': {
+      id: '/_app/seed'
+      path: '/seed'
+      fullPath: '/seed'
+      preLoaderRoute: typeof AppSeedRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/notifications': {
+      id: '/_app/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof AppNotificationsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/legal-library': {
+      id: '/_app/legal-library'
+      path: '/legal-library'
+      fullPath: '/legal-library'
+      preLoaderRoute: typeof AppLegalLibraryRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/inbox': {
+      id: '/_app/inbox'
+      path: '/inbox'
+      fullPath: '/inbox'
+      preLoaderRoute: typeof AppInboxRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/emergency-24h': {
+      id: '/_app/emergency-24h'
+      path: '/emergency-24h'
+      fullPath: '/emergency-24h'
+      preLoaderRoute: typeof AppEmergency24hRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cases': {
+      id: '/_app/cases'
+      path: '/cases'
+      fullPath: '/cases'
+      preLoaderRoute: typeof AppCasesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cases/new': {
+      id: '/_app/cases/new'
+      path: '/new'
+      fullPath: '/cases/new'
+      preLoaderRoute: typeof AppCasesNewRouteImport
+      parentRoute: typeof AppCasesRoute
+    }
+    '/_app/cases/$caseId': {
+      id: '/_app/cases/$caseId'
+      path: '/$caseId'
+      fullPath: '/cases/$caseId'
+      preLoaderRoute: typeof AppCasesCaseIdRouteImport
+      parentRoute: typeof AppCasesRoute
+    }
   }
 }
 
+interface AppCasesRouteChildren {
+  AppCasesCaseIdRoute: typeof AppCasesCaseIdRoute
+  AppCasesNewRoute: typeof AppCasesNewRoute
+}
+
+const AppCasesRouteChildren: AppCasesRouteChildren = {
+  AppCasesCaseIdRoute: AppCasesCaseIdRoute,
+  AppCasesNewRoute: AppCasesNewRoute,
+}
+
+const AppCasesRouteWithChildren = AppCasesRoute._addFileChildren(
+  AppCasesRouteChildren,
+)
+
+interface AppRouteChildren {
+  AppCasesRoute: typeof AppCasesRouteWithChildren
+  AppEmergency24hRoute: typeof AppEmergency24hRoute
+  AppInboxRoute: typeof AppInboxRoute
+  AppLegalLibraryRoute: typeof AppLegalLibraryRoute
+  AppNotificationsRoute: typeof AppNotificationsRoute
+  AppSeedRoute: typeof AppSeedRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppCasesRoute: AppCasesRouteWithChildren,
+  AppEmergency24hRoute: AppEmergency24hRoute,
+  AppInboxRoute: AppInboxRoute,
+  AppLegalLibraryRoute: AppLegalLibraryRoute,
+  AppNotificationsRoute: AppNotificationsRoute,
+  AppSeedRoute: AppSeedRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AppRoute: AppRouteWithChildren,
+  AuthLoginRoute: AuthLoginRoute,
+  AuthSignupRoute: AuthSignupRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
