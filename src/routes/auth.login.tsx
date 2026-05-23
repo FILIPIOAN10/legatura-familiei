@@ -6,7 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/auth/login")({ component: Login });
+export const Route = createFileRoute("/auth/login")({
+  head: () => ({
+    meta: [
+      { title: "Autentificare — ExitusRO" },
+      { name: "description", content: "Accesați dosarul dvs. în platforma ExitusRO." },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
+  component: Login,
+});
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -31,8 +40,8 @@ function Login() {
         <h1 className="font-display text-2xl font-bold">Autentificare</h1>
         <p className="mt-1 text-sm text-muted-foreground">Accesați-vă dosarul.</p>
         <form onSubmit={submit} className="mt-6 space-y-4">
-          <div><Label>Email</Label><Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
-          <div><Label>Parolă</Label><Input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} /></div>
+          <div><Label htmlFor="login-email">Email</Label><Input id="login-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
+          <div><Label htmlFor="login-password">Parolă</Label><Input id="login-password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} /></div>
           <Button type="submit" disabled={busy} className="w-full bg-brand-navy hover:bg-brand-navy/90">
             {busy ? "Se procesează..." : "Intră în cont"}
           </Button>

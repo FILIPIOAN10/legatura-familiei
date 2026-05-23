@@ -1,6 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/_app/legal-library")({ component: Legal });
+export const Route = createFileRoute("/_app/legal-library")({
+  head: () => ({
+    meta: [
+      { title: "Bibliotecă legală post-deces — ExitusRO" },
+      { name: "description", content: "Acte normative aplicabile în procedurile post-deces: L. 119/1996, L. 102/2014, L. 263/2010, L. 36/1995, Cod Civil, Cod Fiscal." },
+      { property: "og:title", content: "Bibliotecă legală post-deces — ExitusRO" },
+      { property: "og:description", content: "Referințe legislative cheie pentru declarare, înhumare și succesiune." },
+      { property: "og:url", content: "https://legatura-familiei.lovable.app/legal-library" },
+    ],
+    links: [{ rel: "canonical", href: "https://legatura-familiei.lovable.app/legal-library" }],
+  }),
+  component: Legal,
+});
 
 const LAWS = [
   { id: "l119", title: "Legea 119/1996 — Actele de stare civilă", summary: "Reglementează declararea decesului, eliberarea certificatului de deces, termenele și sancțiunile. Art. 35 stabilește termenul de 3 zile pentru declarare." },

@@ -8,7 +8,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ROLE_LABELS } from "@/lib/legal";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/auth/signup")({ component: Signup });
+export const Route = createFileRoute("/auth/signup")({
+  head: () => ({
+    meta: [
+      { title: "Creați cont — ExitusRO" },
+      { name: "description", content: "Creați un cont ExitusRO pentru a deschide un dosar post-deces." },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
+  component: Signup,
+});
 
 function Signup() {
   const [email, setEmail] = useState("");
@@ -51,13 +60,13 @@ function Signup() {
         <h1 className="font-display text-2xl font-bold">Creați un cont</h1>
         <p className="mt-1 text-sm text-muted-foreground">Vă rugăm completați datele dvs.</p>
         <form onSubmit={submit} className="mt-6 space-y-4">
-          <div><Label>Nume complet</Label><Input required value={fullName} onChange={(e) => setFullName(e.target.value)} /></div>
-          <div><Label>Email</Label><Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
-          <div><Label>Parolă</Label><Input type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} /></div>
+          <div><Label htmlFor="signup-name">Nume complet</Label><Input id="signup-name" required value={fullName} onChange={(e) => setFullName(e.target.value)} /></div>
+          <div><Label htmlFor="signup-email">Email</Label><Input id="signup-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
+          <div><Label htmlFor="signup-password">Parolă</Label><Input id="signup-password" type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} /></div>
           <div>
-            <Label>Rol</Label>
+            <Label htmlFor="signup-role">Rol</Label>
             <Select value={role} onValueChange={setRole}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger id="signup-role"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {Object.entries(ROLE_LABELS).filter(([k]) => k !== "admin").map(([k, v]) => (
                   <SelectItem key={k} value={k}>{v}</SelectItem>

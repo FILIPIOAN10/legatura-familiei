@@ -52,14 +52,14 @@ function NewCase() {
 
       <form onSubmit={submit} className="mt-8 space-y-6 rounded-xl border border-border bg-card p-6">
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="md:col-span-2"><Label>Nume complet decedat</Label><Input required value={form.deceased_full_name} onChange={(e) => set("deceased_full_name", e.target.value)} /></div>
-          <div><Label>CNP (opțional)</Label><Input maxLength={13} value={form.deceased_cnp} onChange={(e) => set("deceased_cnp", e.target.value)} /></div>
-          <div><Label>Data nașterii</Label><Input type="date" value={form.deceased_dob} onChange={(e) => set("deceased_dob", e.target.value)} /></div>
-          <div><Label>Data și ora decesului</Label><Input type="datetime-local" required value={form.deceased_dod} onChange={(e) => set("deceased_dod", e.target.value)} /></div>
+          <div className="md:col-span-2"><Label htmlFor="nc-name">Nume complet decedat</Label><Input id="nc-name" required value={form.deceased_full_name} onChange={(e) => set("deceased_full_name", e.target.value)} /></div>
+          <div><Label htmlFor="nc-cnp">CNP (opțional)</Label><Input id="nc-cnp" maxLength={13} value={form.deceased_cnp} onChange={(e) => set("deceased_cnp", e.target.value)} /></div>
+          <div><Label htmlFor="nc-dob">Data nașterii</Label><Input id="nc-dob" type="date" value={form.deceased_dob} onChange={(e) => set("deceased_dob", e.target.value)} /></div>
+          <div><Label htmlFor="nc-dod">Data și ora decesului</Label><Input id="nc-dod" type="datetime-local" required value={form.deceased_dod} onChange={(e) => set("deceased_dod", e.target.value)} /></div>
           <div>
-            <Label>Tip caz</Label>
+            <Label htmlFor="nc-type">Tip caz</Label>
             <Select value={form.death_cause_type} onValueChange={(v) => set("death_cause_type", v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger id="nc-type"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="natural">Cauză naturală</SelectItem>
                 <SelectItem value="violent">Violentă (se redirectează la IML)</SelectItem>
@@ -69,18 +69,18 @@ function NewCase() {
             </Select>
             <p className="mt-1 text-[11px] text-muted-foreground">Cazurile violente/suspecte impun expertiză IML.</p>
           </div>
-          <div><Label>Locul decesului</Label><Input placeholder="Domiciliu / Spital / ..." value={form.death_location} onChange={(e) => set("death_location", e.target.value)} /></div>
+          <div><Label htmlFor="nc-loc">Locul decesului</Label><Input id="nc-loc" placeholder="Domiciliu / Spital / ..." value={form.death_location} onChange={(e) => set("death_location", e.target.value)} /></div>
           <div>
-            <Label>Județ</Label>
+            <Label htmlFor="nc-county">Județ</Label>
             <Select value={form.county} onValueChange={(v) => set("county", v)}>
-              <SelectTrigger><SelectValue placeholder="Selectați" /></SelectTrigger>
+              <SelectTrigger id="nc-county"><SelectValue placeholder="Selectați" /></SelectTrigger>
               <SelectContent>
                 {ROMANIAN_COUNTIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
-          <div><Label>Localitate</Label><Input value={form.city} onChange={(e) => set("city", e.target.value)} /></div>
-          <div className="md:col-span-2"><Label>Adresă completă</Label><Textarea rows={2} value={form.address} onChange={(e) => set("address", e.target.value)} /></div>
+          <div><Label htmlFor="nc-city">Localitate</Label><Input id="nc-city" value={form.city} onChange={(e) => set("city", e.target.value)} /></div>
+          <div className="md:col-span-2"><Label htmlFor="nc-addr">Adresă completă</Label><Textarea id="nc-addr" rows={2} value={form.address} onChange={(e) => set("address", e.target.value)} /></div>
         </div>
 
         <div className="rounded-lg border border-brand-amber/30 bg-brand-amber/5 p-4 text-xs text-foreground">

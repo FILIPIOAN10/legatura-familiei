@@ -1,7 +1,17 @@
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "ExitusRO — Proceduri digitale post-deces în România" },
+      { name: "description", content: "Platformă care însoțește familiile, medicii și funcționarii prin pașii legali după un deces: CMCD, certificat de deces, înmormântare, succesiune." },
+      { property: "og:title", content: "ExitusRO — Proceduri digitale post-deces" },
+      { property: "og:description", content: "De la CMCD la certificatul de moștenitor, cu termene legale monitorizate." },
+      { property: "og:url", content: "https://legatura-familiei.lovable.app/" },
+    ],
+    links: [{ rel: "canonical", href: "https://legatura-familiei.lovable.app/" }],
+  }),
   component: Landing,
 });
 
@@ -38,7 +48,7 @@ function Landing() {
             { t: "Termene legale", d: "Monitorizate automat cu referințe la lege (L. 119/1996, L. 102/2014)." },
           ].map((c) => (
             <div key={c.t} className="rounded-xl border border-border bg-card p-6">
-              <h3 className="font-display font-semibold text-brand-navy">{c.t}</h3>
+              <h2 className="font-display text-base font-semibold text-brand-navy">{c.t}</h2>
               <p className="mt-2 text-sm text-muted-foreground">{c.d}</p>
             </div>
           ))}
