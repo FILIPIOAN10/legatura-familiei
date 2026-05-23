@@ -5,6 +5,15 @@ import { api, TOKEN_KEY, type ApiUser } from "@/lib/api";
 
 export type AppRole = "family" | "doctor" | "civil_officer" | "funeral_provider" | "notary" | "admin";
 
+const DEV_TOKEN = "__dev__";
+const DEV_USER: ApiUser = {
+  id: "dev-user-id",
+  email: "dev@example.com",
+  username: "dev",
+  full_name: "Dev User",
+  role: "family",
+};
+
 interface AuthSession {
   access_token: string;
 }
@@ -17,6 +26,7 @@ interface AuthCtx {
   signIn: (token: string) => Promise<void>;
   signOut: () => void;
   refreshRoles: () => Promise<void>;
+  devLogin: (() => void) | null;
 }
 
 const Ctx = createContext<AuthCtx | undefined>(undefined);
@@ -35,6 +45,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const fetchUser = async () => {
+    if (localStorage.getItem(TOKEN_KEY) === DEV_TOKEN) {
+      setUser(DEV_USER);
+      return;
+    }
     try {
       const u = await api.me();
       setUser(u);
@@ -61,6 +75,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (session) await fetchUser();
   };
 
+  const devLogin = import.meta.env.DEV
+    ? () => {
+        localStorage.setItem(TOKEN_KEY, DEV_TOKEN);
+        setSession({ access_token: DEV_TOKEN });
+        setUser(DEV_USER);
+        router.invalidate();
+        qc.invalidateQueries();
+      }
+    : null;
+
   useEffect(() => {
     const token = localStorage.getItem(TOKEN_KEY);
     if (token) {
@@ -75,7 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const roles: AppRole[] = user?.role ? [user.role as AppRole] : [];
 
   return (
-    <Ctx.Provider value={{ session, user, roles, loading, signIn, signOut, refreshRoles }}>
+    <Ctx.Provider value={{ session, user, roles, loading, signIn, signOut, refreshRoles, devLogin }}>
       {children}
     </Ctx.Provider>
   );

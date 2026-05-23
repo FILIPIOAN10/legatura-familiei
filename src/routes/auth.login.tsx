@@ -63,6 +63,11 @@ function Login() {
   const auth = useAuth();
   const nav = useNavigate();
 
+  const devSkip = () => {
+    auth.devLogin?.();
+    nav({ to: "/cases" });
+  };
+
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
@@ -154,6 +159,19 @@ function Login() {
             Creați unul
           </Link>
         </p>
+
+        {auth.devLogin && (
+          <div className="mt-4 border-t border-dashed border-border pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full text-xs text-muted-foreground"
+              onClick={devSkip}
+            >
+              [DEV] Skip login
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
