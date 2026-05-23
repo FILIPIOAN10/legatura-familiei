@@ -16,7 +16,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { CASE_STATUS_LABELS, DOC_TYPE_LABELS } from "@/lib/legal";
 import { formatDateTimeRo, maskCnp } from "@/lib/format";
 import { toast } from "sonner";
-import { FileText, Stethoscope, Building2, Upload, Download } from "lucide-react";
+import { FileText, Stethoscope, Building2, Upload, Download, Phone, Star } from "lucide-react";
+import { getProvidersSortedByPrice } from "@/lib/funeral-providers";
 
 export const Route = createFileRoute("/_app/cases/$caseId")({ component: CaseDetail });
 
@@ -201,6 +202,10 @@ function ArchiveButton({ caseId, onDone }: { caseId: string; onDone: () => void 
     </Button>
   );
 }
+
+  if (role === "family" && caseData.status === "DEATH_CERT_ISSUED") {
+    return <FuneralProviderPicker certNumber={caseData.certificate_number} />;
+  }
 
   return (
     <div className="rounded-xl border border-border bg-card p-6">
