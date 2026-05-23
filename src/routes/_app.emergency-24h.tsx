@@ -1,7 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AlertCircle, Phone, FileCheck, UserCheck } from "lucide-react";
 
-export const Route = createFileRoute("/_app/emergency-24h")({ component: Emergency });
+export const Route = createFileRoute("/_app/emergency-24h")({
+  head: () => ({
+    meta: [
+      { title: "Primele 24 de ore după deces — Ghid ExitusRO" },
+      { name: "description", content: "Pașii esențiali în primele 24 de ore după un deces în România: apel medic, CMCD, declarare la Starea Civilă." },
+      { property: "og:title", content: "Primele 24 de ore după deces — Ghid ExitusRO" },
+      { property: "og:description", content: "Ce trebuie să faceți, în ordine, cu calm și conform legii." },
+      { property: "og:url", content: "https://legatura-familiei.lovable.app/emergency-24h" },
+    ],
+    links: [{ rel: "canonical", href: "https://legatura-familiei.lovable.app/emergency-24h" }],
+  }),
+  component: Emergency,
+});
 
 function Emergency() {
   return (
@@ -32,7 +44,7 @@ function Emergency() {
               <s.icon className="size-5 text-brand-navy" />
             </div>
             <div>
-              <h3 className="font-display font-semibold">{s.t}</h3>
+              <h2 className="font-display text-base font-semibold">{s.t}</h2>
               <p className="mt-1 text-sm text-muted-foreground">{s.d}</p>
             </div>
           </li>
@@ -40,7 +52,7 @@ function Emergency() {
       </ol>
 
       <div className="mt-10 rounded-xl border border-brand-sage/20 bg-brand-sage/5 p-5">
-        <h3 className="font-display font-semibold text-brand-navy">Ce să NU faceți</h3>
+        <h2 className="font-display text-base font-semibold text-brand-navy">Ce să NU faceți</h2>
         <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
           <li>• Nu plătiți serviciile funerare înainte să primiți o ofertă scrisă.</li>
           <li>• Nu semnați contracte sub presiune emoțională imediat după deces.</li>

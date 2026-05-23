@@ -181,9 +181,9 @@ function DoctorIssueForm({ onSubmit, busy }: { onSubmit: (d: { cause_main: strin
         Completați cauza decesului. Documentul va fi semnat electronic (mock).
       </p>
       <div className="space-y-4">
-        <div><Label>Cauza principală</Label><Input required value={main} onChange={(e) => setMain(e.target.value)} placeholder="Ex: Insuficiență cardiacă cronică" /></div>
-        <div><Label>Cauza secundară (opțional)</Label><Input value={sec} onChange={(e) => setSec(e.target.value)} /></div>
-        <div><Label>Cod ICD-10 (opțional)</Label><Input value={icd} onChange={(e) => setIcd(e.target.value)} placeholder="Ex: I50.9" /></div>
+        <div><Label htmlFor="cmcd-main">Cauza principală</Label><Input id="cmcd-main" required value={main} onChange={(e) => setMain(e.target.value)} placeholder="Ex: Insuficiență cardiacă cronică" /></div>
+        <div><Label htmlFor="cmcd-sec">Cauza secundară (opțional)</Label><Input id="cmcd-sec" value={sec} onChange={(e) => setSec(e.target.value)} /></div>
+        <div><Label htmlFor="cmcd-icd">Cod ICD-10 (opțional)</Label><Input id="cmcd-icd" value={icd} onChange={(e) => setIcd(e.target.value)} placeholder="Ex: I50.9" /></div>
       </div>
       <Button type="submit" disabled={busy} className="mt-6 bg-brand-navy hover:bg-brand-navy/90">
         {busy ? "Se semnează..." : "Semnează și emite CMCD"}
@@ -316,7 +316,7 @@ function DocumentVault({ docs, caseId }: { docs: any[]; caseId: string }) {
             <div className="flex items-center gap-2">
               {d.signed && <Badge variant="outline" className="text-brand-sage">Validat</Badge>}
               {d.storage_path && (
-                <Button size="sm" variant="ghost" onClick={() => handleDownload(d.id)} className="gap-1">
+                <Button size="sm" variant="ghost" aria-label={`Descarcă ${d.title || DOC_TYPE_LABELS[d.type]}`} onClick={() => handleDownload(d.id)} className="gap-1">
                   <Download className="size-4" />
                 </Button>
               )}
