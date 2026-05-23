@@ -203,7 +203,6 @@ function ActionPanel({ caseData }: { caseData: any }) {
         {role === "family" && caseData.status === "FUNERAL_SCHEDULED" && " Casa funerară a programat serviciul. Detalii în jurnalul de acțiuni."}
         {role === "family" && caseData.status === "FUNERAL_COMPLETED" && " Înmormântarea s-a finalizat. Puteți deschide succesiunea la notar."}
         {role === "family" && caseData.status === "SUCCESSION_OPEN" && " Notarul instrumentează dosarul de succesiune."}
-        {role === "family" && caseData.status === "SUCCESSION_CLOSED" && " Procedura succesorală este finalizată."}
       </p>
     </div>
   );
