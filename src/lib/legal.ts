@@ -43,9 +43,8 @@ export const CASE_STATUS_ORDER = [
   "FUNERAL_SCHEDULED",
   "FUNERAL_COMPLETED",
   "SUCCESSION_OPEN",
-  "SUCCESSION_CLOSED",
-  "ARCHIVED",
 ] as const;
+
 
 export const ROLE_LABELS: Record<string, string> = {
   family: "Aparținător",
