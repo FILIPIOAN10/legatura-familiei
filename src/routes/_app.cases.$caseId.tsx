@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
-import { getCase, issueCmcd, validateAndIssueDeathCert, requestCorrections, scheduleFuneral, completeFuneral, openSuccession } from "@/lib/cases.functions";
+import { getCase, issueCmcd, validateAndIssueDeathCert, requestCorrections, scheduleFuneral, completeFuneral } from "@/lib/cases.functions";
 import { uploadDocument, getDocumentDownloadUrl } from "@/lib/documents.functions";
 import { CaseStepper } from "@/components/case-stepper";
 import { DeadlineCard } from "@/components/deadline-card";
@@ -188,21 +188,16 @@ function ActionPanel({ caseData }: { caseData: any }) {
     return <FuneralPanel caseData={caseData} onScheduled={invalidate} onCompleted={invalidate} />;
   }
 
-  if (role === "notary" && (caseData.status === "DEATH_CERT_ISSUED" || caseData.status === "FUNERAL_COMPLETED" || caseData.status === "SUCCESSION_OPEN")) {
-    return <NotaryPanel caseData={caseData} onChanged={invalidate} />;
-  }
-
   return (
     <div className="rounded-xl border border-border bg-card p-6">
       <h2 className="mb-2 font-display text-lg font-semibold">Status curent</h2>
       <p className="text-sm text-muted-foreground">
         Cazul este în starea: <strong className="text-brand-navy">{CASE_STATUS_LABELS[caseData.status]}</strong>.
         {role === "family" && caseData.status === "AWAITING_DOCTOR" && " Medicul a fost notificat. Așteptăm emiterea CMCD."}
-        {role === "family" && caseData.status === "CMCD_ISSUED" && " CMCD-ul a fost emis. Funcționarul de stare civilă urmează să valideze și să emită certificatul de deces."}
+        {role === "family" && caseData.status === "CMCD_ISSUED" && " CMCD-ul a fost emis. Încărcați actele necesare (CI/BI decedat, certificat naștere, certificat căsătorie dacă e cazul, CI declarant) pentru a notifica funcționarul de stare civilă."}
         {role === "family" && caseData.status === "DEATH_CERT_ISSUED" && ` Certificatul de deces ${caseData.certificate_number ?? ""} este disponibil. Puteți contacta o casă funerară.`}
         {role === "family" && caseData.status === "FUNERAL_SCHEDULED" && " Casa funerară a programat serviciul. Detalii în jurnalul de acțiuni."}
-        {role === "family" && caseData.status === "FUNERAL_COMPLETED" && " Înmormântarea s-a finalizat. Puteți deschide succesiunea la notar."}
-        {role === "family" && caseData.status === "SUCCESSION_OPEN" && " Notarul instrumentează dosarul de succesiune."}
+        {role === "family" && caseData.status === "FUNERAL_COMPLETED" && " Înmormântarea s-a finalizat. Procesul este complet."}
       </p>
     </div>
   );
@@ -255,43 +250,6 @@ function FuneralPanel({ caseData, onScheduled, onCompleted }: { caseData: any; o
   );
 }
 
-function NotaryPanel({ caseData, onChanged }: { caseData: any; onChanged: () => void }) {
-  const [heirs, setHeirs] = useState("");
-  const openM = useMutation({
-    mutationFn: openSuccession,
-    onSuccess: () => { toast.success("Succesiune deschisă."); onChanged(); },
-    onError: (e: any) => toast.error(e?.detail ?? e.message),
-  });
-
-  if (caseData.status === "SUCCESSION_OPEN") {
-    return (
-      <div className="rounded-xl border border-border bg-card p-6">
-        <h2 className="mb-2 font-display text-lg font-semibold">Succesiune în curs</h2>
-        <p className="text-sm text-muted-foreground">Moștenitori declarați: {caseData.succession?.heirs}</p>
-      </div>
-    );
-  }
-
-
-  return (
-    <form
-      onSubmit={(e) => { e.preventDefault(); openM.mutate({ case_id: caseData.id, heirs }); }}
-      className="rounded-xl border border-border bg-card p-6"
-    >
-      <h2 className="mb-2 font-display text-lg font-semibold">Deschidere procedură succesorală</h2>
-      <p className="mb-6 text-sm text-muted-foreground">Înregistrați moștenitorii declarați. Familia va fi notificată.</p>
-      <div className="space-y-4">
-        <div>
-          <Label htmlFor="n-heirs">Moștenitori (nume, calitate)</Label>
-          <Textarea id="n-heirs" required value={heirs} onChange={(e) => setHeirs(e.target.value)} placeholder="Ex: Maria Ionescu — soție; Andrei Ionescu — fiu" />
-        </div>
-      </div>
-      <Button type="submit" disabled={openM.isPending} className="mt-6 bg-brand-navy hover:bg-brand-navy/90">
-        {openM.isPending ? "Se procesează..." : "Deschide succesiunea"}
-      </Button>
-    </form>
-  );
-}
 
 function DoctorIssueForm({ onSubmit, busy }: { onSubmit: (d: { cause_main: string; cause_secondary?: string; icd10?: string }) => void; busy: boolean }) {
   const [main, setMain] = useState("");

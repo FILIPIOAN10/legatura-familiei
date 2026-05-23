@@ -80,16 +80,13 @@ function devGet(id: string) {
   const tasks = [
     { id: `${id}-t1`, title: "Eliberare CMCD de către medic", legal_reference: "Ord. MS 1147/2012",
       legal_deadline: new Date(dod + 1000 * 60 * 60 * 48).toISOString(),
-      status: done(["CMCD_ISSUED", "AWAITING_CIVIL_OFFICER", "DEATH_CERT_ISSUED", "FUNERAL_SCHEDULED", "FUNERAL_COMPLETED", "SUCCESSION_OPEN", "SUCCESSION_CLOSED"]) },
+      status: done(["CMCD_ISSUED", "AWAITING_CIVIL_OFFICER", "DEATH_CERT_ISSUED", "FUNERAL_SCHEDULED", "FUNERAL_COMPLETED"]) },
     { id: `${id}-t2`, title: "Declarare la Starea Civilă & emitere certificat de deces", legal_reference: "L. 119/1996 art. 35",
       legal_deadline: new Date(dod + 1000 * 60 * 60 * 72).toISOString(),
-      status: done(["DEATH_CERT_ISSUED", "FUNERAL_SCHEDULED", "FUNERAL_COMPLETED", "SUCCESSION_OPEN", "SUCCESSION_CLOSED"]) },
+      status: done(["DEATH_CERT_ISSUED", "FUNERAL_SCHEDULED", "FUNERAL_COMPLETED"]) },
     { id: `${id}-t3`, title: "Programare servicii funerare", legal_reference: "L. 102/2014",
       legal_deadline: null,
-      status: done(["FUNERAL_SCHEDULED", "FUNERAL_COMPLETED", "SUCCESSION_OPEN", "SUCCESSION_CLOSED"]) },
-    { id: `${id}-t4`, title: "Deschidere succesiune la notar", legal_reference: "C. Fiscal art. 111",
-      legal_deadline: null,
-      status: done(["SUCCESSION_OPEN", "SUCCESSION_CLOSED"]) },
+      status: done(["FUNERAL_SCHEDULED", "FUNERAL_COMPLETED"]) },
   ];
   return { case: c, documents: getDevDocumentsForCase(id), tasks, audit: c.audit ?? [] };
 }
