@@ -167,7 +167,23 @@ function ActionPanel({ caseData }: { caseData: any }) {
         </div>
         <p className="text-sm text-muted-foreground">
           Toate etapele legale au fost parcurse. Certificatul de moștenitor a fost emis și succesiunea este închisă.
-          Documentele rămân disponibile în seif pentru consultare.
+          {role === "civil_officer" ? " Puteți arhiva oficial dosarul." : " Dosarul așteaptă arhivare oficială de către Starea Civilă."}
+        </p>
+        {role === "civil_officer" && <ArchiveButton caseId={caseData.id} onDone={invalidate} />}
+      </div>
+    );
+  }
+
+  if (caseData.status === "ARCHIVED") {
+    return (
+      <div className="rounded-xl border border-border bg-muted/30 p-6">
+        <div className="mb-2 flex items-center gap-2">
+          <span className="flex size-7 items-center justify-center rounded-full bg-brand-navy text-white">🗄</span>
+          <h2 className="font-display text-lg font-semibold text-brand-navy">Dosar arhivat</h2>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Dosarul a fost arhivat oficial de Starea Civilă{caseData.archived_at ? ` la ${formatDateTimeRo(caseData.archived_at)}` : ""}.
+          Documentele rămân disponibile pentru consultare.
         </p>
       </div>
     );
