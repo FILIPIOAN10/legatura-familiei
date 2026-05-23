@@ -475,8 +475,8 @@ function DocumentVault({ docs, caseId }: { docs: any[]; caseId: string }) {
                   <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: CI decedat" />
                 </div>
                 <div>
-                  <Label>Fișier (PDF, JPG, PNG)</Label>
-                  <Input ref={fileRef} type="file" accept=".pdf,.jpg,.jpeg,.png" />
+                  <Label>Fișier (doar PDF)</Label>
+                  <Input ref={fileRef} type="file" accept="application/pdf,.pdf" />
                 </div>
               </div>
               <DialogFooter>
