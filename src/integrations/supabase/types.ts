@@ -14,16 +14,356 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          case_id: string | null
+          created_at: string
+          id: string
+          payload: Json | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          case_id?: string | null
+          created_at?: string
+          id?: string
+          payload?: Json | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          case_id?: string | null
+          created_at?: string
+          id?: string
+          payload?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_log_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cases: {
+        Row: {
+          address: string | null
+          assigned_civil_officer: string | null
+          assigned_doctor: string | null
+          assigned_funeral_provider: string | null
+          assigned_notary: string | null
+          case_number: string
+          city: string | null
+          county: string | null
+          created_at: string
+          created_by: string
+          death_cause_type: Database["public"]["Enums"]["death_cause_type"]
+          death_location: string | null
+          deceased_cnp: string | null
+          deceased_dob: string | null
+          deceased_dod: string
+          deceased_full_name: string
+          id: string
+          status: Database["public"]["Enums"]["case_status"]
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          assigned_civil_officer?: string | null
+          assigned_doctor?: string | null
+          assigned_funeral_provider?: string | null
+          assigned_notary?: string | null
+          case_number?: string
+          city?: string | null
+          county?: string | null
+          created_at?: string
+          created_by: string
+          death_cause_type?: Database["public"]["Enums"]["death_cause_type"]
+          death_location?: string | null
+          deceased_cnp?: string | null
+          deceased_dob?: string | null
+          deceased_dod: string
+          deceased_full_name: string
+          id?: string
+          status?: Database["public"]["Enums"]["case_status"]
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          assigned_civil_officer?: string | null
+          assigned_doctor?: string | null
+          assigned_funeral_provider?: string | null
+          assigned_notary?: string | null
+          case_number?: string
+          city?: string | null
+          county?: string | null
+          created_at?: string
+          created_by?: string
+          death_cause_type?: Database["public"]["Enums"]["death_cause_type"]
+          death_location?: string | null
+          deceased_cnp?: string | null
+          deceased_dob?: string | null
+          deceased_dod?: string
+          deceased_full_name?: string
+          id?: string
+          status?: Database["public"]["Enums"]["case_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      documents: {
+        Row: {
+          case_id: string
+          id: string
+          issued_at: string
+          metadata: Json | null
+          signature_meta: Json | null
+          signed: boolean
+          storage_path: string | null
+          title: string
+          type: Database["public"]["Enums"]["document_type"]
+          uploaded_by: string | null
+        }
+        Insert: {
+          case_id: string
+          id?: string
+          issued_at?: string
+          metadata?: Json | null
+          signature_meta?: Json | null
+          signed?: boolean
+          storage_path?: string | null
+          title: string
+          type: Database["public"]["Enums"]["document_type"]
+          uploaded_by?: string | null
+        }
+        Update: {
+          case_id?: string
+          id?: string
+          issued_at?: string
+          metadata?: Json | null
+          signature_meta?: Json | null
+          signed?: boolean
+          storage_path?: string | null
+          title?: string
+          type?: Database["public"]["Enums"]["document_type"]
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          body: string | null
+          case_id: string | null
+          created_at: string
+          id: string
+          read_at: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          case_id?: string | null
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          case_id?: string | null
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          address: string | null
+          city: string | null
+          cnp: string | null
+          county: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          cnp?: string | null
+          county?: string | null
+          created_at?: string
+          full_name?: string | null
+          id: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          cnp?: string | null
+          county?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          case_id: string
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          description: string | null
+          id: string
+          legal_deadline: string | null
+          legal_reference: string | null
+          role_responsible: Database["public"]["Enums"]["app_role"] | null
+          status: Database["public"]["Enums"]["task_status"]
+          title: string
+        }
+        Insert: {
+          case_id: string
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          legal_deadline?: string | null
+          legal_reference?: string | null
+          role_responsible?: Database["public"]["Enums"]["app_role"] | null
+          status?: Database["public"]["Enums"]["task_status"]
+          title: string
+        }
+        Update: {
+          case_id?: string
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          legal_deadline?: string | null
+          legal_reference?: string | null
+          role_responsible?: Database["public"]["Enums"]["app_role"] | null
+          status?: Database["public"]["Enums"]["task_status"]
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          granted_at: string
+          granted_by: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_county: { Args: { _user_id: string }; Returns: string }
+      get_user_roles: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"][]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role:
+        | "family"
+        | "doctor"
+        | "civil_officer"
+        | "funeral_provider"
+        | "notary"
+        | "admin"
+      case_status:
+        | "DRAFT"
+        | "AWAITING_DOCTOR"
+        | "CMCD_ISSUED"
+        | "AWAITING_CIVIL_OFFICER"
+        | "DEATH_CERT_ISSUED"
+        | "FUNERAL_SCHEDULED"
+        | "FUNERAL_COMPLETED"
+        | "SUCCESSION_OPEN"
+        | "SUCCESSION_CLOSED"
+        | "ARCHIVED"
+      death_cause_type: "natural" | "violent" | "suspect" | "unknown"
+      document_type:
+        | "cmcd"
+        | "death_certificate"
+        | "burial_permit"
+        | "parquet_release"
+        | "funeral_contract"
+        | "inheritance_acceptance"
+        | "inheritance_certificate"
+        | "id_card"
+        | "birth_certificate"
+        | "marriage_certificate"
+        | "other"
+      task_status: "todo" | "in_progress" | "done" | "skipped"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +490,42 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: [
+        "family",
+        "doctor",
+        "civil_officer",
+        "funeral_provider",
+        "notary",
+        "admin",
+      ],
+      case_status: [
+        "DRAFT",
+        "AWAITING_DOCTOR",
+        "CMCD_ISSUED",
+        "AWAITING_CIVIL_OFFICER",
+        "DEATH_CERT_ISSUED",
+        "FUNERAL_SCHEDULED",
+        "FUNERAL_COMPLETED",
+        "SUCCESSION_OPEN",
+        "SUCCESSION_CLOSED",
+        "ARCHIVED",
+      ],
+      death_cause_type: ["natural", "violent", "suspect", "unknown"],
+      document_type: [
+        "cmcd",
+        "death_certificate",
+        "burial_permit",
+        "parquet_release",
+        "funeral_contract",
+        "inheritance_acceptance",
+        "inheritance_certificate",
+        "id_card",
+        "birth_certificate",
+        "marriage_certificate",
+        "other",
+      ],
+      task_status: ["todo", "in_progress", "done", "skipped"],
+    },
   },
 } as const
