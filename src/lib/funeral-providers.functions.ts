@@ -11,6 +11,8 @@ export type GoogleFuneralProvider = {
   priceLevel?: number;
   mapsUri?: string;
   websiteUri?: string;
+  location?: { latitude: number; longitude: number };
+
 };
 
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/google_maps";
