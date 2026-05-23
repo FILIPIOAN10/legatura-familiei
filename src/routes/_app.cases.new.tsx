@@ -41,9 +41,10 @@ function NewCase() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="font-display text-3xl font-bold text-brand-navy">Deschidere dosar nou</h1>
+      <h1 className="font-display text-3xl font-bold text-brand-navy">Notifică medicul</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        Completați datele decedatului. Veți putea atașa documente după creare.
+        Completați datele decedatului. La trimitere se deschide automat dosarul și medicul
+        constatator este notificat. Veți putea atașa documente ulterior.
       </p>
 
       <form onSubmit={submit} className="mt-8 space-y-6 rounded-xl border border-border bg-card p-6">
@@ -78,7 +79,7 @@ function NewCase() {
         </div>
 
         <Button type="submit" disabled={busy} className="w-full bg-brand-navy hover:bg-brand-navy/90">
-          {busy ? "Se creează dosarul..." : "Deschide dosar și notifică medicul"}
+          {busy ? "Se trimite notificarea..." : "Notifică medicul"}
         </Button>
       </form>
     </div>

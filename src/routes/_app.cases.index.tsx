@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CASE_STATUS_LABELS } from "@/lib/legal";
 import { formatDateTimeRo } from "@/lib/format";
-import { Plus } from "lucide-react";
+import { Stethoscope } from "lucide-react";
 
 export const Route = createFileRoute("/_app/cases/")({ component: CasesPage });
 
@@ -20,7 +20,10 @@ function CasesPage() {
           <p className="mt-1 text-sm text-muted-foreground">Toate dosarele la care aveți acces.</p>
         </div>
         <Link to="/cases/new">
-          <Button className="bg-brand-navy hover:bg-brand-navy/90"><Plus className="mr-2 size-4" />Deschide dosar nou</Button>
+          <Button className="bg-brand-navy hover:bg-brand-navy/90">
+            <Stethoscope className="mr-2 size-4" />
+            Notifică medicul
+          </Button>
         </Link>
       </div>
 
@@ -29,9 +32,15 @@ function CasesPage() {
       {!isLoading && (data?.cases?.length ?? 0) === 0 && (
         <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center">
           <h3 className="font-display font-semibold">Nu aveți cazuri active</h3>
-          <p className="mt-2 text-sm text-muted-foreground">Începeți prin a deschide un dosar.</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Pentru a începe, notificați medicul constatator. Completați datele decedatului și
+            medicul va fi anunțat automat.
+          </p>
           <Link to="/cases/new" className="mt-4 inline-block">
-            <Button className="bg-brand-navy hover:bg-brand-navy/90">Deschide primul dosar</Button>
+            <Button className="bg-brand-navy hover:bg-brand-navy/90">
+              <Stethoscope className="mr-2 size-4" />
+              Notifică medicul
+            </Button>
           </Link>
         </div>
       )}
