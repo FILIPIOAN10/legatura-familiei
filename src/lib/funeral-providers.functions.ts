@@ -56,7 +56,9 @@ export const searchFuneralProviders = createServerFn({ method: "POST" })
         priceLevel?: string;
         googleMapsUri?: string;
         websiteUri?: string;
+        location?: { latitude: number; longitude: number };
       }>;
+
     };
     if (!res.ok) {
       throw new Error(`Places searchText failed [${res.status}]: ${JSON.stringify(json)}`);
