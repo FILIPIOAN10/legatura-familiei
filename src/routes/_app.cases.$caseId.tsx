@@ -1,8 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { getCase, issueCmcd, validateAndIssueDeathCert, requestCorrections } from "@/lib/cases.functions";
+import { registerUploadedDocument, getDocumentDownloadUrl } from "@/lib/documents.functions";
+import { supabase } from "@/integrations/supabase/client";
 import { CaseStepper } from "@/components/case-stepper";
 import { DeadlineCard } from "@/components/deadline-card";
 import { useAuth, primaryRole } from "@/hooks/use-auth";
@@ -11,11 +13,12 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { CASE_STATUS_LABELS, DOC_TYPE_LABELS } from "@/lib/legal";
 import { formatDateTimeRo, maskCnp } from "@/lib/format";
 import { toast } from "sonner";
-import { FileText, Stethoscope, Building2 } from "lucide-react";
+import { FileText, Stethoscope, Building2, Upload, Download } from "lucide-react";
 
 export const Route = createFileRoute("/_app/cases/$caseId")({ component: CaseDetail });
 
