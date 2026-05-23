@@ -1,6 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useState } from "react";
-import { api } from "@/lib/api";
+import { api, TOKEN_KEY } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +9,9 @@ import { toast } from "sonner";
 import { MailCheck, AlertCircle, ArrowLeft } from "lucide-react";
 
 export const Route = createFileRoute("/auth/reset-password")({
+  beforeLoad: () => {
+    if (localStorage.getItem(TOKEN_KEY)) throw redirect({ to: "/cases" });
+  },
   head: () => ({
     meta: [
       { title: "Resetare parolă — ExitusRO" },
@@ -25,7 +28,7 @@ function ResetPassword() {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const submit = async (e: { preventDefault(): void }) => {
     e.preventDefault();
     setError(null);
     setBusy(true);

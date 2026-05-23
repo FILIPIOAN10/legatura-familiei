@@ -35,10 +35,11 @@ export interface ApiError {
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const token = localStorage.getItem(TOKEN_KEY);
+  const hasBody = options?.body != null;
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers: {
-      "Content-Type": "application/json",
+      ...(hasBody ? { "Content-Type": "application/json" } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options?.headers,
     },

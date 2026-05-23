@@ -1,4 +1,5 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, redirect } from "@tanstack/react-router";
+import { TOKEN_KEY } from "@/lib/api";
 import { useState } from "react";
 import { api, type ApiError } from "@/lib/api";
 import { useAuth } from "@/hooks/use-auth";
@@ -45,6 +46,9 @@ function parseError(err: unknown): AuthError {
 }
 
 export const Route = createFileRoute("/auth/login")({
+  beforeLoad: () => {
+    if (localStorage.getItem(TOKEN_KEY)) throw redirect({ to: "/cases" });
+  },
   head: () => ({
     meta: [
       { title: "Autentificare — ExitusRO" },

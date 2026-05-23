@@ -1,6 +1,6 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, redirect } from "@tanstack/react-router";
 import { useState } from "react";
-import { api } from "@/lib/api";
+import { api, TOKEN_KEY } from "@/lib/api";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,9 @@ import { ROLE_LABELS } from "@/lib/legal";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth/signup")({
+  beforeLoad: () => {
+    if (localStorage.getItem(TOKEN_KEY)) throw redirect({ to: "/cases" });
+  },
   head: () => ({
     meta: [
       { title: "Creați cont — ExitusRO" },
