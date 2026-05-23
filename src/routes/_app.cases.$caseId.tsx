@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { CASE_STATUS_LABELS, DOC_TYPE_LABELS } from "@/lib/legal";
-import { formatDateTimeRo, maskCnp } from "@/lib/format";
+import { formatDateTimeRo } from "@/lib/format";
 import { toast } from "sonner";
 import { FileText, Stethoscope, Building2, Upload, Download, Phone, Star, MapPin } from "lucide-react";
 import { FUNERAL_PROVIDERS } from "@/lib/funeral-providers";
