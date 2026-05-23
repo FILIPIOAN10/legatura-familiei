@@ -21,10 +21,10 @@ export const Route = createFileRoute("/auth/signup")({
 });
 
 function Signup() {
-  const [email, setEmail] = useState("");
-  const [username, setUsername] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("test@example.com");
+  const [username, setUsername] = useState("test_user");
+  const [fullName, setFullName] = useState("Ion Popescu");
+  const [password, setPassword] = useState("password123");
   const [role, setRole] = useState("family");
   const [busy, setBusy] = useState(false);
   const auth = useAuth();

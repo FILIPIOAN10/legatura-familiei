@@ -56,8 +56,8 @@ export const Route = createFileRoute("/auth/login")({
 });
 
 function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("test@example.com");
+  const [password, setPassword] = useState("password123");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<AuthError | null>(null);
   const auth = useAuth();
