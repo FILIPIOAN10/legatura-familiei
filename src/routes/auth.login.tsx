@@ -63,9 +63,9 @@ function Login() {
   const auth = useAuth();
   const nav = useNavigate();
 
-  const devSkip = () => {
-    auth.devLogin?.();
-    nav({ to: "/cases" });
+  const devSkip = (role: "family" | "doctor" | "civil_officer" | "funeral_provider" | "notary") => {
+    auth.devLoginAs?.(role);
+    nav({ to: role === "family" ? "/cases" : "/inbox" });
   };
 
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
