@@ -31,7 +31,7 @@ function devCreate(data: CreateCasePayload) {
   const newCase = {
     id,
     case_number: `DEMO-${new Date().getFullYear()}-${String(n).padStart(4, "0")}`,
-    status: "opened",
+    status: "AWAITING_DOCTOR",
     created_at: now,
     ...data,
   };
