@@ -35,14 +35,12 @@ export const CASE_STATUS_LABELS: Record<string, string> = {
 };
 
 export const CASE_STATUS_ORDER = [
-  "DRAFT",
   "AWAITING_DOCTOR",
   "CMCD_ISSUED",
   "AWAITING_CIVIL_OFFICER",
   "DEATH_CERT_ISSUED",
   "FUNERAL_SCHEDULED",
   "FUNERAL_COMPLETED",
-  "SUCCESSION_OPEN",
 ] as const;
 
 
