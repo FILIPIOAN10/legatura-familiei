@@ -1,6 +1,6 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useState } from "react";
-import { api, hasAuthCookie } from "@/lib/api";
+import { api, isAuthenticated } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +10,7 @@ import { MailCheck, AlertCircle, ArrowLeft } from "lucide-react";
 
 export const Route = createFileRoute("/auth/reset-password")({
   beforeLoad: () => {
-    if (hasAuthCookie()) throw redirect({ to: "/cases" });
+    if (isAuthenticated()) throw redirect({ to: "/cases" });
   },
   head: () => ({
     meta: [

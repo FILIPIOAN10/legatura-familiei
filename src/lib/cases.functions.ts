@@ -1,128 +1,53 @@
 import { api } from "@/lib/api";
 
+export type CaseType = "violenta" | "suspecta" | "necunoscuta";
+
 export interface CreateCasePayload {
-  deceased_full_name: string;
-  deceased_cnp?: string;
-  deceased_dob?: string;
-  deceased_dod: string;
-  death_location?: string;
-  death_cause_type: "natural" | "violent" | "suspect" | "unknown";
-  city?: string;
-  county?: string;
-  address?: string;
+  fullname: string;
+  cnp: string;
+  birthday: string;
+  datetime_of_death: string;
+  case_type: CaseType;
+  place_of_death: string;
+  judet: string;
+  localitate: string;
+  adresa_completa: string;
 }
 
-export interface ApiCaseSummary {
-  id: string;
-  case_number: string;
-  status: string;
-  deceased_full_name: string;
-  deceased_dod: string;
-  city?: string;
-  county?: string;
-  created_at: string;
-}
+export type UpdateCasePayload = Partial<CreateCasePayload>;
 
-export interface ApiAuditEntry {
+export interface ApiCase {
   id: number;
-  action: string;
-  actor_name?: string;
+  user_id: number;
+  fullname: string;
+  cnp: string;
+  birthday: string;
+  datetime_of_death: string;
+  case_type: CaseType;
+  place_of_death: string;
+  judet: string;
+  localitate: string;
+  adresa_completa: string;
   created_at: string;
+  updated_at: string;
 }
 
-export interface ApiCmcd {
-  cause_main?: string;
-  cause_secondary?: string;
-  icd10?: string;
-  issued_at?: string;
-}
-
-export interface ApiFuneral {
-  date?: string;
-  location?: string;
-  completed_at?: string;
-}
-
-export interface ApiCase extends ApiCaseSummary {
-  deceased_cnp?: string;
-  deceased_dob?: string;
-  death_location?: string;
-  death_cause_type?: "natural" | "violent" | "suspect" | "unknown";
-  address?: string;
-  cmcd?: ApiCmcd;
-  certificate_number?: string;
-  cert_issued_at?: string;
-  funeral?: ApiFuneral;
-}
-
-export interface ApiCaseTask {
-  id: string;
-  title: string;
-  legal_reference: string;
-  legal_deadline?: string | null;
-  status: "todo" | "done" | "in_progress";
-}
-
-export interface ApiDocument {
-  id: string;
-  type: string;
-  title: string;
-  storage_path?: string;
-  signed: boolean;
-  issued_at: string;
-}
-
-export async function listMyCases() {
-  return api.get<{ cases: ApiCaseSummary[] }>("/api/cases");
+export async function listCases(skip = 0, limit = 100) {
+  return api.get<ApiCase[]>(`/cases/?skip=${skip}&limit=${limit}`);
 }
 
 export async function createCase(data: CreateCasePayload) {
-  return api.post<{ case: ApiCaseSummary }>("/api/cases", data);
+  return api.post<ApiCase>("/cases/", data);
 }
 
-export async function getCase(
-  id: string,
-): Promise<{
-  case: ApiCase;
-  documents: ApiDocument[];
-  tasks: ApiCaseTask[];
-  audit: ApiAuditEntry[];
-}> {
-  return api.get(`/api/cases/${id}`);
+export async function getCase(id: number) {
+  return api.get<ApiCase>(`/cases/${id}`);
 }
 
-export async function issueCmcd(data: {
-  case_id: string;
-  cause_main: string;
-  cause_secondary?: string;
-  icd10?: string;
-}) {
-  return api.post<{ ok: boolean }>(`/api/cases/${data.case_id}/cmcd`, data);
+export async function updateCase(id: number, data: UpdateCasePayload) {
+  return api.patch<ApiCase>(`/cases/${id}`, data);
 }
 
-export async function validateAndIssueDeathCert(data: { case_id: string }) {
-  return api.post<{ ok: boolean; certificate_number: string }>(
-    `/api/cases/${data.case_id}/death-certificate`,
-    {},
-  );
-}
-
-export async function requestCorrections(data: { case_id: string; reason: string }) {
-  return api.post<{ ok: boolean }>(`/api/cases/${data.case_id}/corrections`, data);
-}
-
-export async function scheduleFuneral(data: {
-  case_id: string;
-  date: string;
-  location: string;
-}) {
-  return api.post<{ ok: boolean }>(`/api/cases/${data.case_id}/funeral`, data);
-}
-
-export async function completeFuneral(data: { case_id: string }) {
-  return api.post<{ ok: boolean }>(`/api/cases/${data.case_id}/funeral/complete`, {});
-}
-
-export async function archiveCase(data: { case_id: string }) {
-  return api.post<{ ok: boolean }>(`/api/cases/${data.case_id}/archive`, {});
+export async function deleteCase(id: number) {
+  return api.delete<void>(`/cases/${id}`);
 }

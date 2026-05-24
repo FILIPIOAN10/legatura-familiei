@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate, redirect } from "@tanstack/react-router";
 import { useState } from "react";
-import { hasAuthCookie, type ApiError, type RegisterPayload } from "@/lib/api";
+import { isAuthenticated, type ApiError, type RegisterPayload } from "@/lib/api";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { AlertCircle } from "lucide-react";
 
-const SELECTABLE_ROLES: { value: RegisterPayload["role"]; label: string; hint: string }[] = [
+const SELECTABLE_ROLES: { value: string; label: string; hint: string }[] = [
   { value: "family", label: "Aparținător (familie)", hint: "Deschideți dosarul, urmăriți pașii" },
   { value: "doctor", label: "Medic constatator", hint: "Eliberați CMCD" },
   { value: "funeral_provider", label: "Casă funerară", hint: "Programați înmormântarea" },
@@ -25,7 +25,7 @@ const SELECTABLE_ROLES: { value: RegisterPayload["role"]; label: string; hint: s
 
 export const Route = createFileRoute("/auth/signup")({
   beforeLoad: () => {
-    if (hasAuthCookie()) throw redirect({ to: "/cases" });
+    if (isAuthenticated()) throw redirect({ to: "/cases" });
   },
   head: () => ({
     meta: [
@@ -38,17 +38,17 @@ export const Route = createFileRoute("/auth/signup")({
 });
 
 function Signup() {
-  const [email, setEmail] = useState("");
-  const [username, setUsername] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("test@exitusro.ro");
+  const [username, setUsername] = useState("testuser");
+  const [fullName, setFullName] = useState("Test User");
+  const [password, setPassword] = useState("password123");
   const [role, setRole] = useState<RegisterPayload["role"]>("family");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const auth = useAuth();
   const nav = useNavigate();
 
-  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const submit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     setBusy(true);

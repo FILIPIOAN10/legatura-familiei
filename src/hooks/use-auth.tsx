@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
-import { api, hasAuthCookie, type ApiUser, type RegisterPayload } from "@/lib/api";
+import { api, isAuthenticated, type ApiUser, type RegisterPayload } from "@/lib/api";
 
 export type AppRole = ApiUser["role"];
 
@@ -47,11 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    try {
-      await api.logout();
-    } catch {
-      // ignore; still clear local state
-    }
+    api.logout();
     setUser(null);
     router.invalidate();
     qc.invalidateQueries();
@@ -62,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    if (hasAuthCookie()) {
+    if (isAuthenticated()) {
       fetchUser().finally(() => setLoading(false));
     } else {
       setLoading(false);

@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate, redirect } from "@tanstack/react-router";
 import { useState } from "react";
-import { hasAuthCookie, type ApiError } from "@/lib/api";
+import { isAuthenticated, type ApiError } from "@/lib/api";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,7 +45,7 @@ function parseError(err: unknown): AuthError {
     return {
       title: "Serverul nu răspunde",
       message:
-        "Nu se poate conecta la backend. Verificați că serverul Spring Boot rulează pe portul 8080.",
+        "Nu se poate conecta la backend. Verificați că serverul rulează pe portul 8000.",
     };
   }
   return {
@@ -56,7 +56,7 @@ function parseError(err: unknown): AuthError {
 
 export const Route = createFileRoute("/auth/login")({
   beforeLoad: () => {
-    if (hasAuthCookie()) throw redirect({ to: "/cases" });
+    if (isAuthenticated()) throw redirect({ to: "/cases" });
   },
   head: () => ({
     meta: [
@@ -69,14 +69,14 @@ export const Route = createFileRoute("/auth/login")({
 });
 
 function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("admin@exitusro.ro");
+  const [password, setPassword] = useState("password123");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<AuthError | null>(null);
   const auth = useAuth();
   const nav = useNavigate();
 
-  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const submit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     setBusy(true);
