@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { AppShell } from "@/components/app-shell";
 
-export const Route = createFileRoute("/_app/legal-library")({
+export const Route = createFileRoute("/legal-library")({
   head: () => ({
     meta: [
       { title: "Bibliotecă legală post-deces — ExitusRO" },
@@ -25,22 +26,24 @@ const LAWS = [
 
 function Legal() {
   return (
-    <div className="mx-auto max-w-4xl">
-      <h1 className="font-display text-3xl font-bold text-brand-navy">Bibliotecă legală</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Acte normative relevante în procedurile post-deces din România.
-      </p>
-      <div className="mt-8 space-y-4">
-        {LAWS.map((l) => (
-          <article key={l.id} className="rounded-xl border border-border bg-card p-6">
-            <h2 className="font-display text-lg font-semibold text-brand-navy">{l.title}</h2>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{l.summary}</p>
-          </article>
-        ))}
+    <AppShell>
+      <div className="mx-auto max-w-4xl">
+        <h1 className="font-display text-3xl font-bold text-brand-navy">Bibliotecă legală</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Acte normative relevante în procedurile post-deces din România.
+        </p>
+        <div className="mt-8 space-y-4">
+          {LAWS.map((l) => (
+            <article key={l.id} className="rounded-xl border border-border bg-card p-6">
+              <h2 className="font-display text-lg font-semibold text-brand-navy">{l.title}</h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{l.summary}</p>
+            </article>
+          ))}
+        </div>
+        <p className="mt-8 text-xs text-muted-foreground">
+          Informațiile au caracter orientativ. Versiunile actuale ale legilor sunt disponibile pe portalul legislativ oficial.
+        </p>
       </div>
-      <p className="mt-8 text-xs text-muted-foreground">
-        Informațiile au caracter orientativ. Versiunile actuale ale legilor sunt disponibile pe portalul legislativ oficial.
-      </p>
-    </div>
+    </AppShell>
   );
 }
