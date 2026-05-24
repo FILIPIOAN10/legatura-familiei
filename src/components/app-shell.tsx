@@ -5,15 +5,15 @@ import { Button } from "@/components/ui/button";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, roles, signOut } = useAuth();
-  const role = primaryRole(roles);
-  const initials = (user?.email ?? "?").slice(0, 2).toUpperCase();
+  const role = user ? primaryRole(roles) : null;
+  const initials = user ? (user.email ?? "?").slice(0, 2).toUpperCase() : "";
 
   const navItems: { to: string; label: string; show: boolean }[] = [
     { to: "/cases", label: "Cazurile mele", show: roles.includes("family") },
     { to: "/inbox", label: "Inbox", show: roles.includes("doctor") || roles.includes("civil_officer") || roles.includes("notary") || roles.includes("funeral_provider") },
-    { to: "/notifications", label: "Notificări", show: true },
+    { to: "/notifications", label: "Notificări", show: !!user },
     { to: "/legal-library", label: "Bibliotecă legală", show: true },
-    { to: "/emergency-24h", label: "Primele 24h", show: roles.includes("family") },
+    { to: "/emergency-24h", label: "Ghid 24h", show: true },
   ];
 
   return (
@@ -38,20 +38,36 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               ))}
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="hidden text-right md:block">
-              <div className="text-sm font-medium leading-tight">{user?.email}</div>
-              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                {ROLE_LABELS[role]}
+          
+          {user ? (
+            <div className="flex items-center gap-3">
+              <div className="hidden text-right md:block">
+                <div className="text-sm font-medium leading-tight">{user.email}</div>
+                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  {ROLE_LABELS[role!]}
+                </div>
               </div>
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-navy/10 text-xs font-semibold text-brand-navy">
+                {initials}
+              </div>
+              <Button variant="outline" size="sm" onClick={signOut}>
+                Ieșire
+              </Button>
             </div>
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-navy/10 text-xs font-semibold text-brand-navy">
-              {initials}
+          ) : (
+            <div className="flex items-center gap-3">
+              <Link to="/auth/login">
+                <Button variant="outline" size="sm">
+                  Autentificare
+                </Button>
+              </Link>
+              <Link to="/auth/signup">
+                <Button size="sm" className="bg-brand-navy hover:bg-brand-navy/90 text-white font-semibold">
+                  Înregistrare
+                </Button>
+              </Link>
             </div>
-            <Button variant="outline" size="sm" onClick={signOut}>
-              Ieșire
-            </Button>
-          </div>
+          )}
         </div>
       </nav>
       <main className="mx-auto max-w-7xl px-6 py-10">{children}</main>
