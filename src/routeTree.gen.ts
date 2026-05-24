@@ -10,15 +10,15 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as LegalLibraryRouteImport } from './routes/legal-library'
+import { Route as Emergency24hRouteImport } from './routes/emergency-24h'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthSignupRouteImport } from './routes/auth.signup'
 import { Route as AuthResetPasswordRouteImport } from './routes/auth.reset-password'
 import { Route as AuthLoginRouteImport } from './routes/auth.login'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
-import { Route as AppLegalLibraryRouteImport } from './routes/_app.legal-library'
 import { Route as AppInboxRouteImport } from './routes/_app.inbox'
-import { Route as AppEmergency24hRouteImport } from './routes/_app.emergency-24h'
 import { Route as AppCasesIndexRouteImport } from './routes/_app.cases.index'
 import { Route as AppCasesNewRouteImport } from './routes/_app.cases.new'
 import { Route as AppCasesCaseIdRouteImport } from './routes/_app.cases.$caseId'
@@ -26,6 +26,16 @@ import { Route as AppCasesCaseIdRouteImport } from './routes/_app.cases.$caseId'
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalLibraryRoute = LegalLibraryRouteImport.update({
+  id: '/legal-library',
+  path: '/legal-library',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Emergency24hRoute = Emergency24hRouteImport.update({
+  id: '/emergency-24h',
+  path: '/emergency-24h',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppRoute = AppRouteImport.update({
@@ -57,19 +67,9 @@ const AppNotificationsRoute = AppNotificationsRouteImport.update({
   path: '/notifications',
   getParentRoute: () => AppRoute,
 } as any)
-const AppLegalLibraryRoute = AppLegalLibraryRouteImport.update({
-  id: '/legal-library',
-  path: '/legal-library',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppInboxRoute = AppInboxRouteImport.update({
   id: '/inbox',
   path: '/inbox',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppEmergency24hRoute = AppEmergency24hRouteImport.update({
-  id: '/emergency-24h',
-  path: '/emergency-24h',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCasesIndexRoute = AppCasesIndexRouteImport.update({
@@ -90,10 +90,10 @@ const AppCasesCaseIdRoute = AppCasesCaseIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/emergency-24h': typeof Emergency24hRoute
+  '/legal-library': typeof LegalLibraryRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/emergency-24h': typeof AppEmergency24hRoute
   '/inbox': typeof AppInboxRoute
-  '/legal-library': typeof AppLegalLibraryRoute
   '/notifications': typeof AppNotificationsRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
@@ -104,10 +104,10 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/emergency-24h': typeof Emergency24hRoute
+  '/legal-library': typeof LegalLibraryRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/emergency-24h': typeof AppEmergency24hRoute
   '/inbox': typeof AppInboxRoute
-  '/legal-library': typeof AppLegalLibraryRoute
   '/notifications': typeof AppNotificationsRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
@@ -120,10 +120,10 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
+  '/emergency-24h': typeof Emergency24hRoute
+  '/legal-library': typeof LegalLibraryRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/_app/emergency-24h': typeof AppEmergency24hRoute
   '/_app/inbox': typeof AppInboxRoute
-  '/_app/legal-library': typeof AppLegalLibraryRoute
   '/_app/notifications': typeof AppNotificationsRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
@@ -136,10 +136,10 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/sitemap.xml'
     | '/emergency-24h'
-    | '/inbox'
     | '/legal-library'
+    | '/sitemap.xml'
+    | '/inbox'
     | '/notifications'
     | '/auth/login'
     | '/auth/reset-password'
@@ -150,10 +150,10 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/sitemap.xml'
     | '/emergency-24h'
-    | '/inbox'
     | '/legal-library'
+    | '/sitemap.xml'
+    | '/inbox'
     | '/notifications'
     | '/auth/login'
     | '/auth/reset-password'
@@ -165,10 +165,10 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_app'
+    | '/emergency-24h'
+    | '/legal-library'
     | '/sitemap.xml'
-    | '/_app/emergency-24h'
     | '/_app/inbox'
-    | '/_app/legal-library'
     | '/_app/notifications'
     | '/auth/login'
     | '/auth/reset-password'
@@ -181,6 +181,8 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
+  Emergency24hRoute: typeof Emergency24hRoute
+  LegalLibraryRoute: typeof LegalLibraryRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   AuthLoginRoute: typeof AuthLoginRoute
   AuthResetPasswordRoute: typeof AuthResetPasswordRoute
@@ -194,6 +196,20 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal-library': {
+      id: '/legal-library'
+      path: '/legal-library'
+      fullPath: '/legal-library'
+      preLoaderRoute: typeof LegalLibraryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/emergency-24h': {
+      id: '/emergency-24h'
+      path: '/emergency-24h'
+      fullPath: '/emergency-24h'
+      preLoaderRoute: typeof Emergency24hRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app': {
@@ -238,25 +254,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppNotificationsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/legal-library': {
-      id: '/_app/legal-library'
-      path: '/legal-library'
-      fullPath: '/legal-library'
-      preLoaderRoute: typeof AppLegalLibraryRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/inbox': {
       id: '/_app/inbox'
       path: '/inbox'
       fullPath: '/inbox'
       preLoaderRoute: typeof AppInboxRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/emergency-24h': {
-      id: '/_app/emergency-24h'
-      path: '/emergency-24h'
-      fullPath: '/emergency-24h'
-      preLoaderRoute: typeof AppEmergency24hRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/cases/': {
@@ -284,9 +286,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
-  AppEmergency24hRoute: typeof AppEmergency24hRoute
   AppInboxRoute: typeof AppInboxRoute
-  AppLegalLibraryRoute: typeof AppLegalLibraryRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppCasesCaseIdRoute: typeof AppCasesCaseIdRoute
   AppCasesNewRoute: typeof AppCasesNewRoute
@@ -294,9 +294,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppEmergency24hRoute: AppEmergency24hRoute,
   AppInboxRoute: AppInboxRoute,
-  AppLegalLibraryRoute: AppLegalLibraryRoute,
   AppNotificationsRoute: AppNotificationsRoute,
   AppCasesCaseIdRoute: AppCasesCaseIdRoute,
   AppCasesNewRoute: AppCasesNewRoute,
@@ -308,6 +306,8 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
+  Emergency24hRoute: Emergency24hRoute,
+  LegalLibraryRoute: LegalLibraryRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   AuthLoginRoute: AuthLoginRoute,
   AuthResetPasswordRoute: AuthResetPasswordRoute,
