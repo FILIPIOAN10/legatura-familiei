@@ -4,9 +4,11 @@ import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -15,6 +17,7 @@ import org.springframework.web.server.ResponseStatusException;
 import ro.exitusro.backend.cases.CaseEntity;
 import ro.exitusro.backend.cases.CaseRepository;
 import ro.exitusro.backend.documents.dto.DocumentSummary;
+import ro.exitusro.backend.notifications.NotificationService;
 import ro.exitusro.backend.security.CurrentUser;
 import ro.exitusro.backend.user.Role;
 import ro.exitusro.backend.user.UserAccount;
@@ -37,11 +40,16 @@ public class DocumentController {
     private final DocumentRepository documents;
     private final CaseRepository cases;
     private final DocumentStorage storage;
+    private final NotificationService notifications;
 
-    public DocumentController(DocumentRepository documents, CaseRepository cases, DocumentStorage storage) {
+    public DocumentController(DocumentRepository documents,
+                              CaseRepository cases,
+                              DocumentStorage storage,
+                              NotificationService notifications) {
         this.documents = documents;
         this.cases = cases;
         this.storage = storage;
+        this.notifications = notifications;
     }
 
     @PostMapping("/upload")
@@ -110,6 +118,60 @@ public class DocumentController {
                 .contentLength(Files.size(path))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename*=UTF-8''" + encoded)
                 .body(new FileSystemResource(path));
+    }
+
+    /**
+     * Mark a single document as validated by the civil officer.
+     * Used during the per-document review flow before issuing the death certificate.
+     */
+    @PostMapping("/{id}/validate")
+    @Transactional
+    public DocumentSummary validateDocument(@PathVariable String id, @CurrentUser UserAccount user) {
+        ensureValidator(user);
+        DocumentEntity doc = documents.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found"));
+        doc.markValidated(user);
+        doc.getCaseEntity().addAudit("Document validat: " + doc.getTitle(), user);
+        // Hibernate dirty checking flushes both `doc` and the cascaded audit entry on commit.
+        return DocumentSummary.from(doc);
+    }
+
+    /**
+     * Civil officer flags a single document as needing clarification from the family.
+     * The note is stored on the document and the family receives a notification.
+     */
+    @PostMapping("/{id}/request-clarification")
+    @Transactional
+    public DocumentSummary requestClarification(@PathVariable String id,
+                                                @RequestBody Map<String, String> body,
+                                                @CurrentUser UserAccount user) {
+        ensureValidator(user);
+        String note = body != null ? body.getOrDefault("note", "").trim() : "";
+        if (note.isBlank()) {
+            throw new ResponseStatusException(BAD_REQUEST, "Note is required");
+        }
+        DocumentEntity doc = documents.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found"));
+        doc.requestClarification(user, note);
+        CaseEntity c = doc.getCaseEntity();
+        c.addAudit("Lămuriri cerute pentru documentul \"" + doc.getTitle() + "\": " + note, user);
+
+        notifications.push(
+                Role.FAMILY,
+                "Lămuriri solicitate de Starea Civilă",
+                "Pentru documentul \"" + doc.getTitle() + "\" din dosarul " + c.getCaseNumber() +
+                        ": " + note,
+                "doc_clarification",
+                c
+        );
+        return DocumentSummary.from(doc);
+    }
+
+    private void ensureValidator(UserAccount user) {
+        Role role = user.getRole();
+        if (role != Role.CIVIL_OFFICER && role != Role.ADMIN) {
+            throw new ResponseStatusException(FORBIDDEN, "Only civil officers can validate documents");
+        }
     }
 
     private void ensureCanRead(CaseEntity c, UserAccount user) {

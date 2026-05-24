@@ -50,6 +50,26 @@ public class DocumentEntity {
     @Column(name = "issued_at", nullable = false)
     private Instant issuedAt = Instant.now();
 
+    // Validation by civil officer (or any reviewer) — independent of `signed`,
+    // which is reserved for the issuing professional (e.g. doctor for CMCD).
+    @Column(nullable = false)
+    private boolean validated = false;
+
+    @Column(name = "validated_at")
+    private Instant validatedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "validated_by")
+    private UserAccount validatedBy;
+
+    /**
+     * If the reviewer needs additional info from the family, the note is stored
+     * here. A non-null/non-blank value flags the document as "needs clarification".
+     * Cleared when the document is later validated.
+     */
+    @Column(name = "validation_note", length = 1000)
+    private String validationNote;
+
     protected DocumentEntity() {}
 
     public DocumentEntity(CaseEntity caseEntity, String type, String title) {
@@ -69,10 +89,29 @@ public class DocumentEntity {
     public UserAccount getUploadedBy() { return uploadedBy; }
     public Instant getIssuedAt() { return issuedAt; }
 
+    public boolean isValidated() { return validated; }
+    public Instant getValidatedAt() { return validatedAt; }
+    public UserAccount getValidatedBy() { return validatedBy; }
+    public String getValidationNote() { return validationNote; }
+
     public void setTitle(String title) { this.title = title; }
     public void setStoragePath(String storagePath) { this.storagePath = storagePath; }
     public void setMimeType(String mimeType) { this.mimeType = mimeType; }
     public void setSizeBytes(Long sizeBytes) { this.sizeBytes = sizeBytes; }
     public void setSigned(boolean signed) { this.signed = signed; }
     public void setUploadedBy(UserAccount uploadedBy) { this.uploadedBy = uploadedBy; }
+
+    public void markValidated(UserAccount actor) {
+        this.validated = true;
+        this.validatedAt = Instant.now();
+        this.validatedBy = actor;
+        this.validationNote = null;
+    }
+
+    public void requestClarification(UserAccount actor, String note) {
+        this.validated = false;
+        this.validatedAt = null;
+        this.validatedBy = actor;
+        this.validationNote = note;
+    }
 }
