@@ -170,7 +170,7 @@ function Landing() {
       </nav>
 
       {/* Hero Section */}
-      <section className="mx-auto max-w-5xl px-6 pt-20 pb-16 text-center md:pt-28 md:pb-24">
+      <section className="mx-auto max-w-5xl px-6 flex flex-col justify-center items-center min-h-[calc(100vh-4rem)] py-12 text-center">
         <h1 className="font-display text-4xl font-extrabold tracking-tight text-brand-navy sm:text-5xl md:text-6xl max-w-4xl mx-auto leading-[1.12]">
           Birocrația post-deces,{" "}
           <span className="relative inline-block whitespace-nowrap">
