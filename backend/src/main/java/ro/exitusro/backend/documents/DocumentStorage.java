@@ -38,6 +38,20 @@ public class DocumentStorage {
         return new Stored(target.toString(), file.getContentType(), file.getSize());
     }
 
+    /**
+     * Persists a byte payload (e.g. a generated PDF) under {caseId}/{uuid}{ext}.
+     * Returns the same Stored record shape as {@link #store(MultipartFile, String)}.
+     */
+    public Stored storeBytes(byte[] data, String caseId, String extWithDot, String mimeType) throws IOException {
+        Path caseDir = root.resolve(caseId);
+        Files.createDirectories(caseDir);
+        String ext = extWithDot == null ? "" : extWithDot;
+        String name = UUID.randomUUID() + ext;
+        Path target = caseDir.resolve(name);
+        Files.write(target, data);
+        return new Stored(target.toString(), mimeType, data.length);
+    }
+
     public Path resolve(String storagePath) {
         Path p = Paths.get(storagePath).toAbsolutePath().normalize();
         if (!p.startsWith(root)) {

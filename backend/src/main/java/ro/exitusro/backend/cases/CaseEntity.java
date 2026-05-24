@@ -6,8 +6,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -108,6 +106,20 @@ public class CaseEntity {
     @Column(name = "archived_at")
     private Instant archivedAt;
 
+    // Family confirms supporting documents are uploaded → notifies civil officer.
+    @Column(name = "documents_submitted_at")
+    private Instant documentsSubmittedAt;
+
+    // Family-selected funeral provider (lookup mirror; provider data lives in the static catalog).
+    @Column(name = "selected_provider_id", length = 80)
+    private String selectedProviderId;
+    @Column(name = "selected_provider_name", length = 190)
+    private String selectedProviderName;
+    @Column(name = "selected_provider_phone", length = 40)
+    private String selectedProviderPhone;
+    @Column(name = "selected_provider_at")
+    private Instant selectedProviderAt;
+
     @OneToMany(mappedBy = "caseEntity", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("createdAt DESC")
     private List<AuditEntry> audit = new ArrayList<>();
@@ -150,6 +162,12 @@ public class CaseEntity {
     public Instant getFuneralCompletedAt() { return funeralCompletedAt; }
     public Instant getArchivedAt() { return archivedAt; }
 
+    public Instant getDocumentsSubmittedAt() { return documentsSubmittedAt; }
+    public String getSelectedProviderId() { return selectedProviderId; }
+    public String getSelectedProviderName() { return selectedProviderName; }
+    public String getSelectedProviderPhone() { return selectedProviderPhone; }
+    public Instant getSelectedProviderAt() { return selectedProviderAt; }
+
     public List<AuditEntry> getAudit() { return audit; }
 
     public void setDeceasedFullName(String v) { this.deceasedFullName = v; }
@@ -185,6 +203,15 @@ public class CaseEntity {
 
     public void markFuneralCompleted() { this.funeralCompletedAt = Instant.now(); }
     public void markArchived() { this.archivedAt = Instant.now(); }
+
+    public void markDocumentsSubmitted() { this.documentsSubmittedAt = Instant.now(); }
+
+    public void setSelectedProvider(String providerId, String name, String phone) {
+        this.selectedProviderId = providerId;
+        this.selectedProviderName = name;
+        this.selectedProviderPhone = phone;
+        this.selectedProviderAt = Instant.now();
+    }
 
     public void addAudit(String action, UserAccount actor) {
         AuditEntry e = new AuditEntry(this, action, actor);

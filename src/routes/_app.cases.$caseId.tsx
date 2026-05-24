@@ -1,8 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRef, useState } from "react";
-import { getCase, issueCmcd, validateAndIssueDeathCert, requestCorrections, scheduleFuneral, completeFuneral } from "@/lib/cases.functions";
-import { uploadDocument, getDocumentDownloadUrl } from "@/lib/documents.functions";
+import { useRef, useState, useMemo } from "react";
+import {
+  getCase,
+  issueCmcd,
+  validateAndIssueDeathCert,
+  requestCorrections,
+  scheduleFuneral,
+  completeFuneral,
+  submitFamilyDocuments,
+  selectFuneralProvider,
+} from "@/lib/cases.functions";
+import {
+  uploadDocument,
+  getDocumentDownloadUrl,
+  validateDocument,
+  requestDocumentCorrection,
+} from "@/lib/documents.functions";
 import { CaseStepper } from "@/components/case-stepper";
 import { DeadlineCard } from "@/components/deadline-card";
 import { useAuth, primaryRole } from "@/hooks/use-auth";
@@ -11,14 +25,45 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { CASE_STATUS_LABELS, DOC_TYPE_LABELS } from "@/lib/legal";
 import { formatDateTimeRo } from "@/lib/format";
 import { toast } from "sonner";
-import { FileText, Stethoscope, Building2, Upload, Download, Phone, Star, MapPin } from "lucide-react";
+import {
+  FileText,
+  Stethoscope,
+  Building2,
+  Upload,
+  Download,
+  Phone,
+  Star,
+  MapPin,
+  CheckCircle2,
+  Circle,
+  Search,
+  Hourglass,
+  Lock,
+  Send,
+  ShieldCheck,
+  AlertTriangle,
+  MessageSquareWarning,
+} from "lucide-react";
 import { FUNERAL_PROVIDERS } from "@/lib/funeral-providers";
-
 
 export const Route = createFileRoute("/_app/cases/$caseId")({ component: CaseDetail });
 
@@ -40,7 +85,9 @@ function CaseDetail() {
       <div className="mb-8">
         <div className="mb-2 flex items-center gap-3">
           <Badge className="bg-brand-navy text-white">Caz activ</Badge>
-          <span className="text-sm text-muted-foreground">Dosar: <span className="font-mono">{c.case_number}</span></span>
+          <span className="text-sm text-muted-foreground">
+            Dosar: <span className="font-mono">{c.case_number}</span>
+          </span>
         </div>
         <h1 className="font-display text-3xl font-bold text-foreground">{c.deceased_full_name}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -52,7 +99,7 @@ function CaseDetail() {
         <div className="space-y-6 lg:col-span-2">
           <CaseStepper current={c.status} />
 
-          <ActionPanel caseData={c} />
+          <ActionPanel caseData={c} documents={data.documents} />
 
           <DocumentVault docs={data.documents} caseId={c.id} />
         </div>
@@ -71,10 +118,14 @@ function CaseDetail() {
             <ul className="space-y-3">
               {data.tasks.map((t) => (
                 <li key={t.id} className="flex gap-3 text-sm">
-                  <span className={`mt-1 size-2 shrink-0 rounded-full ${t.status === "done" ? "bg-brand-sage" : "bg-muted-foreground/40"}`} />
+                  <span
+                    className={`mt-1 size-2 shrink-0 rounded-full ${t.status === "done" ? "bg-brand-sage" : "bg-muted-foreground/40"}`}
+                  />
                   <div>
                     <p className="font-medium">{t.title}</p>
-                    {t.legal_reference && <p className="text-[11px] text-muted-foreground">{t.legal_reference}</p>}
+                    {t.legal_reference && (
+                      <p className="text-[11px] text-muted-foreground">{t.legal_reference}</p>
+                    )}
                   </div>
                 </li>
               ))}
@@ -86,7 +137,8 @@ function CaseDetail() {
             <ul className="space-y-2 text-xs text-muted-foreground">
               {data.audit.map((a) => (
                 <li key={a.id}>
-                  <span className="font-medium text-foreground">{a.action}</span> — {formatDateTimeRo(a.created_at)}
+                  <span className="font-medium text-foreground">{a.action}</span> —{" "}
+                  {formatDateTimeRo(a.created_at)}
                 </li>
               ))}
             </ul>
@@ -98,12 +150,19 @@ function CaseDetail() {
 }
 
 function isClujNapoca(city?: string, county?: string) {
-  const c = (city ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/-/g, " ");
-  const j = (county ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const c = (city ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/-/g, " ");
+  const j = (county ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
   return j.includes("cluj") && (c.includes("cluj napoca") || c.includes("cluj"));
 }
 
-function ActionPanel({ caseData }: { caseData: any }) {
+function ActionPanel({ caseData, documents }: { caseData: any; documents: any[] }) {
   const { roles } = useAuth();
   const role = primaryRole(roles);
   const qc = useQueryClient();
@@ -111,17 +170,26 @@ function ActionPanel({ caseData }: { caseData: any }) {
 
   const issueM = useMutation({
     mutationFn: issueCmcd,
-    onSuccess: () => { toast.success("CMCD emis și transmis la Starea Civilă."); invalidate(); },
+    onSuccess: () => {
+      toast.success("CMCD emis și transmis la Starea Civilă.");
+      invalidate();
+    },
     onError: (e: any) => toast.error(e?.detail ?? e.message),
   });
   const validateM = useMutation({
     mutationFn: validateAndIssueDeathCert,
-    onSuccess: (r: any) => { toast.success(`Certificat ${r.certificate_number} emis.`); invalidate(); },
+    onSuccess: (r: any) => {
+      toast.success(`Certificat ${r.certificate_number} emis.`);
+      invalidate();
+    },
     onError: (e: any) => toast.error(e?.detail ?? e.message),
   });
   const correctionsM = useMutation({
     mutationFn: requestCorrections,
-    onSuccess: () => { toast.success("Solicitare trimisă."); invalidate(); },
+    onSuccess: () => {
+      toast.success("Solicitare trimisă.");
+      invalidate();
+    },
     onError: (e: any) => toast.error(e?.detail ?? e.message),
   });
 
@@ -134,57 +202,67 @@ function ActionPanel({ caseData }: { caseData: any }) {
     );
   }
 
-  if (role === "civil_officer" && (caseData.status === "CMCD_ISSUED" || caseData.status === "AWAITING_CIVIL_OFFICER")) {
+  // Family uploads supporting documents and confirms before notifying the civil officer.
+  if (role === "family" && caseData.status === "CMCD_ISSUED") {
     return (
-      <div className="rounded-xl border border-border bg-card p-6">
-        <div className="mb-4 flex items-center gap-2">
-          <Building2 className="size-5 text-brand-navy" />
-          <h2 className="font-display text-lg font-semibold">Înregistrare în SIIEASC</h2>
-        </div>
-        <p className="mb-4 text-sm text-muted-foreground">
-          Verificați CMCD-ul și actele anexate (CI/BI decedat, certificat de naștere, certificat de căsătorie, CI declarant).
-          La validare se înregistrează decesul în <strong>SIIEASC</strong> (Sistemul Informatic Integrat pentru Emiterea Actelor de Stare Civilă),
-          se generează actul de deces și certificatul de deces, și, dacă e cazul, adeverința de înhumare.
-        </p>
-        <ul className="mb-6 space-y-1 text-xs text-muted-foreground">
-          <li>✓ CMCD primit de la medic</li>
-          <li>✓ Acte aparținător încărcate în seif</li>
-          <li>→ Înregistrare în SIIEASC și emitere certificat</li>
-        </ul>
-        <div className="flex flex-wrap gap-3">
-          <Button
-            onClick={() => validateM.mutate({ case_id: caseData.id })}
-            disabled={validateM.isPending}
-            className="bg-brand-navy hover:bg-brand-navy/90"
-          >
-            {validateM.isPending ? "Se înregistrează în SIIEASC..." : "Înregistrează în SIIEASC și emite certificat"}
-          </Button>
-          <CorrectionsDialog onSubmit={(reason) => correctionsM.mutate({ case_id: caseData.id, reason })} />
-        </div>
-      </div>
+      <FamilyDocumentsChecklist
+        caseData={caseData}
+        documents={documents}
+        onSubmitted={invalidate}
+      />
     );
   }
 
-  if (role === "family" && caseData.status === "DEATH_CERT_ISSUED" && isClujNapoca(caseData.city, caseData.county)) {
-    return <FuneralProviderPicker certNumber={caseData.certificate_number} status={caseData.status} />;
-  }
-
-  if (role === "civil_officer" && caseData.status === "DEATH_CERT_ISSUED" && isClujNapoca(caseData.city, caseData.county)) {
-    return <FuneralProviderPicker certNumber={caseData.certificate_number} status={caseData.status} />;
-  }
-
-  if (role === "family" && caseData.status === "DEATH_CERT_ISSUED") {
+  // Civil officer is waiting until the family confirms the documents.
+  if (role === "civil_officer" && caseData.status === "CMCD_ISSUED") {
     return (
       <div className="rounded-xl border border-border bg-card p-6">
-        <h2 className="mb-2 font-display text-lg font-semibold">Alegeți o casă funerară</h2>
+        <div className="mb-3 flex items-center gap-2">
+          <Hourglass className="size-5 text-brand-navy" />
+          <h2 className="font-display text-lg font-semibold">Așteptăm acte de la aparținător</h2>
+        </div>
         <p className="text-sm text-muted-foreground">
-          Certificatul de deces a fost emis. Contactați o casă funerară direct.
+          CMCD-ul a fost emis. Aparținătorul încarcă în seif actele necesare (CI/BI decedat,
+          certificat de naștere, certificat de căsătorie dacă e cazul, CI declarant). Veți fi
+          notificat automat când acestea sunt confirmate.
         </p>
       </div>
     );
   }
 
-  if (role === "funeral_provider" && (caseData.status === "DEATH_CERT_ISSUED" || caseData.status === "FUNERAL_SCHEDULED")) {
+  if (role === "civil_officer" && caseData.status === "AWAITING_CIVIL_OFFICER") {
+    return (
+      <CivilOfficerReviewPanel
+        caseData={caseData}
+        documents={documents}
+        onIssueCert={() => validateM.mutate({ case_id: caseData.id })}
+        issuingCert={validateM.isPending}
+        onRequestCaseCorrections={(reason) => correctionsM.mutate({ case_id: caseData.id, reason })}
+        onChanged={invalidate}
+      />
+    );
+  }
+
+  // Family flow after the civil officer issued the death certificate:
+  // 1. notification card with explicit "search funeral provider" CTA,
+  // 2. provider list with single selection that locks the others,
+  // 3. confirm submission via API.
+  if (role === "family" && caseData.status === "DEATH_CERT_ISSUED") {
+    return <FamilyFuneralPickerFlow caseData={caseData} onConfirmed={invalidate} />;
+  }
+
+  if (
+    role === "civil_officer" &&
+    caseData.status === "DEATH_CERT_ISSUED" &&
+    isClujNapoca(caseData.city, caseData.county)
+  ) {
+    return <FuneralProviderReadOnlyCard caseData={caseData} />;
+  }
+
+  if (
+    role === "funeral_provider" &&
+    (caseData.status === "DEATH_CERT_ISSUED" || caseData.status === "FUNERAL_SCHEDULED")
+  ) {
     return <FuneralPanel caseData={caseData} onScheduled={invalidate} onCompleted={invalidate} />;
   }
 
@@ -192,29 +270,50 @@ function ActionPanel({ caseData }: { caseData: any }) {
     <div className="rounded-xl border border-border bg-card p-6">
       <h2 className="mb-2 font-display text-lg font-semibold">Status curent</h2>
       <p className="text-sm text-muted-foreground">
-        Cazul este în starea: <strong className="text-brand-navy">{CASE_STATUS_LABELS[caseData.status]}</strong>.
-        {role === "family" && caseData.status === "AWAITING_DOCTOR" && " Medicul a fost notificat. Așteptăm emiterea CMCD."}
-        {role === "family" && caseData.status === "CMCD_ISSUED" && " CMCD-ul a fost emis. Încărcați actele necesare (CI/BI decedat, certificat naștere, certificat căsătorie dacă e cazul, CI declarant) pentru a notifica funcționarul de stare civilă."}
-        {role === "family" && caseData.status === "DEATH_CERT_ISSUED" && ` Certificatul de deces ${caseData.certificate_number ?? ""} este disponibil. Puteți contacta o casă funerară.`}
-        {role === "family" && caseData.status === "FUNERAL_SCHEDULED" && " Casa funerară a programat serviciul. Detalii în jurnalul de acțiuni."}
-        {role === "family" && caseData.status === "FUNERAL_COMPLETED" && " Înmormântarea s-a finalizat. Procesul este complet."}
+        Cazul este în starea:{" "}
+        <strong className="text-brand-navy">{CASE_STATUS_LABELS[caseData.status]}</strong>.
+        {role === "family" &&
+          caseData.status === "AWAITING_DOCTOR" &&
+          " Medicul a fost notificat. Așteptăm emiterea CMCD."}
+        {role === "family" &&
+          caseData.status === "AWAITING_CIVIL_OFFICER" &&
+          " Funcționarul de stare civilă a fost notificat și va emite certificatul de deces."}
+        {role === "family" &&
+          caseData.status === "FUNERAL_SCHEDULED" &&
+          " Casa funerară a programat serviciul. Detalii în jurnalul de acțiuni."}
+        {role === "family" &&
+          caseData.status === "FUNERAL_COMPLETED" &&
+          " Înmormântarea s-a finalizat. Procesul este complet."}
       </p>
     </div>
   );
 }
 
-
-function FuneralPanel({ caseData, onScheduled, onCompleted }: { caseData: any; onScheduled: () => void; onCompleted: () => void }) {
+function FuneralPanel({
+  caseData,
+  onScheduled,
+  onCompleted,
+}: {
+  caseData: any;
+  onScheduled: () => void;
+  onCompleted: () => void;
+}) {
   const [date, setDate] = useState("");
   const [location, setLocation] = useState("");
   const schedM = useMutation({
     mutationFn: scheduleFuneral,
-    onSuccess: () => { toast.success("Înmormântare programată."); onScheduled(); },
+    onSuccess: () => {
+      toast.success("Înmormântare programată.");
+      onScheduled();
+    },
     onError: (e: any) => toast.error(e?.detail ?? e.message),
   });
   const doneM = useMutation({
     mutationFn: completeFuneral,
-    onSuccess: () => { toast.success("Înmormântare marcată ca finalizată."); onCompleted(); },
+    onSuccess: () => {
+      toast.success("Înmormântare marcată ca finalizată.");
+      onCompleted();
+    },
     onError: (e: any) => toast.error(e?.detail ?? e.message),
   });
 
@@ -223,9 +322,15 @@ function FuneralPanel({ caseData, onScheduled, onCompleted }: { caseData: any; o
       <div className="rounded-xl border border-border bg-card p-6">
         <h2 className="mb-2 font-display text-lg font-semibold">Înmormântare programată</h2>
         <p className="mb-4 text-sm text-muted-foreground">
-          Detalii: {caseData.funeral?.date && new Date(caseData.funeral.date).toLocaleString("ro-RO")} — {caseData.funeral?.location}
+          Detalii:{" "}
+          {caseData.funeral?.date && new Date(caseData.funeral.date).toLocaleString("ro-RO")} —{" "}
+          {caseData.funeral?.location}
         </p>
-        <Button onClick={() => doneM.mutate({ case_id: caseData.id })} disabled={doneM.isPending} className="bg-brand-navy hover:bg-brand-navy/90">
+        <Button
+          onClick={() => doneM.mutate({ case_id: caseData.id })}
+          disabled={doneM.isPending}
+          className="bg-brand-navy hover:bg-brand-navy/90"
+        >
           {doneM.isPending ? "Se procesează..." : "Marchează finalizată"}
         </Button>
       </div>
@@ -234,30 +339,65 @@ function FuneralPanel({ caseData, onScheduled, onCompleted }: { caseData: any; o
 
   return (
     <form
-      onSubmit={(e) => { e.preventDefault(); schedM.mutate({ case_id: caseData.id, date, location }); }}
+      onSubmit={(e) => {
+        e.preventDefault();
+        schedM.mutate({ case_id: caseData.id, date, location });
+      }}
       className="rounded-xl border border-border bg-card p-6"
     >
       <h2 className="mb-2 font-display text-lg font-semibold">Programare servicii funerare</h2>
-      <p className="mb-6 text-sm text-muted-foreground">Stabiliți data și locația ceremoniei. Familia va fi notificată.</p>
+      <p className="mb-6 text-sm text-muted-foreground">
+        Stabiliți data și locația ceremoniei. Familia va fi notificată.
+      </p>
       <div className="space-y-4">
-        <div><Label htmlFor="f-date">Dată și oră</Label><Input id="f-date" type="datetime-local" required value={date} onChange={(e) => setDate(e.target.value)} /></div>
-        <div><Label htmlFor="f-loc">Locație</Label><Input id="f-loc" required value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Ex: Cimitirul Bellu, Capela 3" /></div>
+        <div>
+          <Label htmlFor="f-date">Dată și oră</Label>
+          <Input
+            id="f-date"
+            type="datetime-local"
+            required
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
+        </div>
+        <div>
+          <Label htmlFor="f-loc">Locație</Label>
+          <Input
+            id="f-loc"
+            required
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            placeholder="Ex: Cimitirul Bellu, Capela 3"
+          />
+        </div>
       </div>
-      <Button type="submit" disabled={schedM.isPending} className="mt-6 bg-brand-navy hover:bg-brand-navy/90">
+      <Button
+        type="submit"
+        disabled={schedM.isPending}
+        className="mt-6 bg-brand-navy hover:bg-brand-navy/90"
+      >
         {schedM.isPending ? "Se programează..." : "Confirmă programarea"}
       </Button>
     </form>
   );
 }
 
-
-function DoctorIssueForm({ onSubmit, busy }: { onSubmit: (d: { cause_main: string; cause_secondary?: string; icd10?: string }) => void; busy: boolean }) {
+function DoctorIssueForm({
+  onSubmit,
+  busy,
+}: {
+  onSubmit: (d: { cause_main: string; cause_secondary?: string; icd10?: string }) => void;
+  busy: boolean;
+}) {
   const [main, setMain] = useState("");
   const [sec, setSec] = useState("");
   const [icd, setIcd] = useState("");
   return (
     <form
-      onSubmit={(e) => { e.preventDefault(); onSubmit({ cause_main: main, cause_secondary: sec, icd10: icd }); }}
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit({ cause_main: main, cause_secondary: sec, icd10: icd });
+      }}
       className="rounded-xl border border-border bg-card p-6"
     >
       <div className="mb-4 flex items-center gap-2">
@@ -268,9 +408,29 @@ function DoctorIssueForm({ onSubmit, busy }: { onSubmit: (d: { cause_main: strin
         Completați cauza decesului. Documentul va fi semnat electronic (mock).
       </p>
       <div className="space-y-4">
-        <div><Label htmlFor="cmcd-main">Cauza principală</Label><Input id="cmcd-main" required value={main} onChange={(e) => setMain(e.target.value)} placeholder="Ex: Insuficiență cardiacă cronică" /></div>
-        <div><Label htmlFor="cmcd-sec">Cauza secundară (opțional)</Label><Input id="cmcd-sec" value={sec} onChange={(e) => setSec(e.target.value)} /></div>
-        <div><Label htmlFor="cmcd-icd">Cod ICD-10 (opțional)</Label><Input id="cmcd-icd" value={icd} onChange={(e) => setIcd(e.target.value)} placeholder="Ex: I50.9" /></div>
+        <div>
+          <Label htmlFor="cmcd-main">Cauza principală</Label>
+          <Input
+            id="cmcd-main"
+            required
+            value={main}
+            onChange={(e) => setMain(e.target.value)}
+            placeholder="Ex: Insuficiență cardiacă cronică"
+          />
+        </div>
+        <div>
+          <Label htmlFor="cmcd-sec">Cauza secundară (opțional)</Label>
+          <Input id="cmcd-sec" value={sec} onChange={(e) => setSec(e.target.value)} />
+        </div>
+        <div>
+          <Label htmlFor="cmcd-icd">Cod ICD-10 (opțional)</Label>
+          <Input
+            id="cmcd-icd"
+            value={icd}
+            onChange={(e) => setIcd(e.target.value)}
+            placeholder="Ex: I50.9"
+          />
+        </div>
       </div>
       <Button type="submit" disabled={busy} className="mt-6 bg-brand-navy hover:bg-brand-navy/90">
         {busy ? "Se semnează..." : "Semnează și emite CMCD"}
@@ -284,53 +444,684 @@ function CorrectionsDialog({ onSubmit }: { onSubmit: (reason: string) => void })
   const [reason, setReason] = useState("");
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild><Button variant="outline">Solicită corecții</Button></DialogTrigger>
+      <DialogTrigger asChild>
+        <Button variant="outline">Solicită corecții</Button>
+      </DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle>Solicitare corecții</DialogTitle></DialogHeader>
-        <Textarea placeholder="Motivul..." value={reason} onChange={(e) => setReason(e.target.value)} />
+        <DialogHeader>
+          <DialogTitle>Solicitare corecții</DialogTitle>
+        </DialogHeader>
+        <Textarea
+          placeholder="Motivul..."
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+        />
         <DialogFooter>
-          <Button onClick={() => { onSubmit(reason); setOpen(false); }} disabled={reason.length < 3}>Trimite</Button>
+          <Button
+            onClick={() => {
+              onSubmit(reason);
+              setOpen(false);
+            }}
+            disabled={reason.length < 3}
+          >
+            Trimite
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
 
-function FuneralProviderPicker({ certNumber, status }: { certNumber?: string; status?: string }) {
-  const providers = FUNERAL_PROVIDERS
-    .filter((p) => p.city.toLowerCase().includes("cluj"))
-    .sort((a, b) => a.priceFrom - b.priceFrom);
-  const certIssued = status === "DEATH_CERT_ISSUED";
+// ===================== Civil officer: per-document review =====================
+
+const FAMILY_REQUIRED_TYPES = [
+  "id_card_deceased",
+  "birth_certificate",
+  "id_card_declarant",
+] as const;
+
+const VALIDATION_LABEL: Record<string, string> = {
+  PENDING: "În așteptare",
+  VALIDATED: "Validat",
+  NEEDS_CORRECTION: "Lămuriri cerute",
+};
+
+function CivilOfficerReviewPanel({
+  caseData,
+  documents,
+  onIssueCert,
+  issuingCert,
+  onRequestCaseCorrections,
+  onChanged,
+}: {
+  caseData: any;
+  documents: any[];
+  onIssueCert: () => void;
+  issuingCert: boolean;
+  onRequestCaseCorrections: (reason: string) => void;
+  onChanged: () => void;
+}) {
+  const validateM = useMutation({
+    mutationFn: validateDocument,
+    onSuccess: () => {
+      toast.success("Document validat.");
+      onChanged();
+    },
+    onError: (e: any) => toast.error(e?.detail ?? e.message ?? "Eroare la validare"),
+  });
+  const corrM = useMutation({
+    mutationFn: requestDocumentCorrection,
+    onSuccess: () => {
+      toast.success("Solicitare de lămuriri trimisă aparținătorului.");
+      onChanged();
+    },
+    onError: (e: any) => toast.error(e?.detail ?? e.message ?? "Eroare la solicitare"),
+  });
+
+  // Show only the latest revision per document type. Older rejected revisions
+  // remain visible from the seif but don't clutter the review checklist.
+  const latestByType = useMemo(() => {
+    const map = new Map<string, any>();
+    for (const d of [...documents].sort(
+      (a, b) => new Date(b.issued_at).getTime() - new Date(a.issued_at).getTime(),
+    )) {
+      if (!map.has(d.type)) map.set(d.type, d);
+    }
+    return map;
+  }, [documents]);
+
+  const requiredDocs = FAMILY_REQUIRED_TYPES.map((t) => latestByType.get(t)).filter(Boolean);
+  const optionalMarriage = latestByType.get("marriage_certificate");
+  const reviewDocs = optionalMarriage ? [...requiredDocs, optionalMarriage] : requiredDocs;
+  const cmcdDoc = latestByType.get("cmcd");
+
+  const allValidated = reviewDocs.every((d) => d.validation_status === "VALIDATED");
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-6">
+      <div className="mb-4 flex items-center gap-2">
+        <Building2 className="size-5 text-brand-navy" />
+        <h2 className="font-display text-lg font-semibold">
+          Verificare documente & emitere certificat
+        </h2>
+      </div>
+      <p className="mb-5 text-sm text-muted-foreground">
+        Descărcați și verificați fiecare document. Apăsați <strong>Validează</strong> pe cele
+        corecte sau <strong>Cere lămuriri</strong> pentru a întoarce documentul la aparținător cu un
+        motiv. Butonul de emitere SIIEASC se activează doar după ce toate actele aparținătorului
+        sunt validate.
+      </p>
+
+      {cmcdDoc && (
+        <div className="mb-5 rounded-lg border border-brand-navy/20 bg-brand-navy/5 p-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
+              <FileText className="size-5 text-brand-navy" />
+              <div>
+                <p className="text-sm font-medium">{cmcdDoc.title}</p>
+                <p className="text-xs text-muted-foreground">
+                  CMCD generat automat după semnarea de către medic •{" "}
+                  {formatDateTimeRo(cmcdDoc.issued_at)}
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-2"
+              onClick={() => downloadDoc(cmcdDoc.id)}
+            >
+              <Download className="size-4" /> Descarcă CMCD
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <ul className="mb-5 space-y-2">
+        {reviewDocs.length === 0 && (
+          <li className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+            Aparținătorul nu a încărcat încă acte.
+          </li>
+        )}
+        {reviewDocs.map((d) => (
+          <ReviewRow
+            key={d.id}
+            doc={d}
+            busy={validateM.isPending || corrM.isPending}
+            onValidate={() => validateM.mutate({ document_id: d.id })}
+            onRequestCorrection={(reason) => corrM.mutate({ document_id: d.id, reason })}
+          />
+        ))}
+      </ul>
+
+      <div className="flex flex-wrap gap-3 border-t border-border pt-4">
+        <Button
+          onClick={onIssueCert}
+          disabled={!allValidated || issuingCert || reviewDocs.length === 0}
+          className="bg-brand-navy hover:bg-brand-navy/90"
+        >
+          {issuingCert
+            ? "Se înregistrează în SIIEASC..."
+            : allValidated
+              ? "Înregistrează în SIIEASC și emite certificat"
+              : "Validați toate actele înainte de emitere"}
+        </Button>
+        <CorrectionsDialog onSubmit={onRequestCaseCorrections} />
+      </div>
+      {!allValidated && reviewDocs.length > 0 && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          {reviewDocs.filter((d) => d.validation_status === "VALIDATED").length} /{" "}
+          {reviewDocs.length} validate.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function ReviewRow({
+  doc,
+  busy,
+  onValidate,
+  onRequestCorrection,
+}: {
+  doc: any;
+  busy: boolean;
+  onValidate: () => void;
+  onRequestCorrection: (reason: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+
+  const status = doc.validation_status as string;
+  const isValidated = status === "VALIDATED";
+  const isCorrection = status === "NEEDS_CORRECTION";
+
+  const tone = isValidated
+    ? "border-brand-sage/40 bg-brand-sage/5"
+    : isCorrection
+      ? "border-amber-400/40 bg-amber-50"
+      : "border-border bg-background";
+
+  return (
+    <li className={`rounded-lg border p-3 transition ${tone}`}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          {isValidated ? (
+            <CheckCircle2 className="size-5 text-brand-sage" />
+          ) : isCorrection ? (
+            <AlertTriangle className="size-5 text-amber-600" />
+          ) : (
+            <Circle className="size-5 text-muted-foreground" />
+          )}
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium">{doc.title || DOC_TYPE_LABELS[doc.type]}</p>
+            <p className="text-xs text-muted-foreground">
+              {DOC_TYPE_LABELS[doc.type]} • {formatDateTimeRo(doc.issued_at)} •{" "}
+              {VALIDATION_LABEL[status] ?? status}
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="ghost" onClick={() => downloadDoc(doc.id)} className="gap-1">
+            <Download className="size-4" /> Descarcă
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-2 border-brand-sage text-brand-sage hover:bg-brand-sage/10"
+            onClick={onValidate}
+            disabled={busy || isValidated}
+          >
+            <ShieldCheck className="size-4" />
+            {isValidated ? "Validat ✓" : "Validează"}
+          </Button>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2 border-amber-500 text-amber-700 hover:bg-amber-50"
+                disabled={busy}
+              >
+                <MessageSquareWarning className="size-4" /> Cere lămuriri
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Cere lămuriri pentru {doc.title}</DialogTitle>
+              </DialogHeader>
+              <Textarea
+                placeholder="Ex: scan ilizibil, document expirat, lipsește pagina 2..."
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                rows={4}
+              />
+              <DialogFooter>
+                <Button
+                  onClick={() => {
+                    onRequestCorrection(reason);
+                    setOpen(false);
+                    setReason("");
+                  }}
+                  disabled={reason.trim().length < 3}
+                >
+                  Trimite aparținătorului
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+      {isCorrection && doc.correction_reason && (
+        <p className="mt-2 rounded-md border border-amber-200 bg-white p-2 text-xs text-amber-800">
+          <strong>Motiv lămuriri:</strong> {doc.correction_reason}
+        </p>
+      )}
+    </li>
+  );
+}
+
+async function downloadDoc(id: string) {
+  try {
+    const res = await getDocumentDownloadUrl({ document_id: id });
+    window.open(res.url, "_blank");
+  } catch (e: any) {
+    toast.error(e?.detail ?? e.message ?? "Eroare la descărcare");
+  }
+}
+
+// ===================== Family: documents checklist =====================
+
+const REQUIRED_DOC_TYPES = [
+  { type: "id_card_deceased", label: "CI/BI decedat", required: true },
+  { type: "birth_certificate", label: "Certificat de naștere decedat", required: true },
+  { type: "id_card_declarant", label: "CI declarant", required: true },
+] as const;
+
+function FamilyDocumentsChecklist({
+  caseData,
+  documents,
+  onSubmitted,
+}: {
+  caseData: any;
+  documents: any[];
+  onSubmitted: () => void;
+}) {
+  const [marriageApplicable, setMarriageApplicable] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [pendingType, setPendingType] = useState<string | null>(null);
+
+  // Latest revision per type — that's what the civil officer will look at.
+  const latestByType = useMemo(() => {
+    const map = new Map<string, any>();
+    for (const d of [...(documents ?? [])].sort(
+      (a, b) => new Date(b.issued_at).getTime() - new Date(a.issued_at).getTime(),
+    )) {
+      if (!map.has(d.type)) map.set(d.type, d);
+    }
+    return map;
+  }, [documents]);
+
+  const uploadedTypes = useMemo(
+    () => new Set<string>(Array.from(latestByType.keys())),
+    [latestByType],
+  );
+
+  const isReady = (type: string) => {
+    const d = latestByType.get(type);
+    return !!d && d.validation_status !== "NEEDS_CORRECTION";
+  };
+
+  const requiredOk = REQUIRED_DOC_TYPES.every((d) => isReady(d.type));
+  const marriageOk = !marriageApplicable || isReady("marriage_certificate");
+  const allReady = requiredOk && marriageOk;
+
+  // If the family came back here because the officer asked for clarifications,
+  // pre-tick the marriage checkbox so the row stays visible and editable.
+  if (
+    !marriageApplicable &&
+    latestByType.has("marriage_certificate") &&
+    latestByType.get("marriage_certificate").validation_status === "NEEDS_CORRECTION"
+  ) {
+    // Note: setting state during render is fine here because we guard it.
+    setTimeout(() => setMarriageApplicable(true), 0);
+  }
+
+  const correctionDocs = Array.from(latestByType.values()).filter(
+    (d) => d.validation_status === "NEEDS_CORRECTION",
+  );
+
+  const submitM = useMutation({
+    mutationFn: submitFamilyDocuments,
+    onSuccess: () => {
+      toast.success("Acte trimise. Funcționarul de stare civilă a fost notificat.");
+      onSubmitted();
+    },
+    onError: (e: any) => toast.error(e?.detail ?? e.message ?? "Eroare la trimitere"),
+  });
+
+  const openUpload = (type: string) => {
+    setPendingType(type);
+    setUploadOpen(true);
+  };
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-6">
+      <div className="mb-4 flex items-center gap-2">
+        <FileText className="size-5 text-brand-navy" />
+        <h2 className="font-display text-lg font-semibold">Încărcare acte aparținător</h2>
+      </div>
+      <p className="mb-3 text-sm text-muted-foreground">
+        CMCD-ul a fost emis de medic. Încărcați actele necesare; bifa apare automat când documentul
+        este în seif. După ce toate actele obligatorii sunt încărcate, confirmați pentru a notifica
+        funcționarul de stare civilă.
+      </p>
+
+      {correctionDocs.length > 0 && (
+        <div className="mb-5 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <div className="mb-1 flex items-center gap-2 font-medium">
+            <AlertTriangle className="size-4" /> Funcționarul a cerut lămuriri pe{" "}
+            {correctionDocs.length} document{correctionDocs.length > 1 ? "e" : ""}.
+          </div>
+          <ul className="list-disc space-y-1 pl-5 text-xs">
+            {correctionDocs.map((d: any) => (
+              <li key={d.id}>
+                <strong>{DOC_TYPE_LABELS[d.type] ?? d.type}:</strong> {d.correction_reason}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs">
+            Re-încărcați documentele de mai jos cu varianta corectă, apoi confirmați din nou.
+          </p>
+        </div>
+      )}
+
+      <ul className="mb-4 space-y-2">
+        {REQUIRED_DOC_TYPES.map((d) => {
+          const latest = latestByType.get(d.type);
+          const uploaded = !!latest;
+          const ready = isReady(d.type);
+          const correction = latest?.validation_status === "NEEDS_CORRECTION";
+          const tone = correction
+            ? "border-amber-400/60 bg-amber-50"
+            : ready
+              ? "border-brand-sage/40 bg-brand-sage/5"
+              : "border-border bg-background";
+          return (
+            <li
+              key={d.type}
+              className={`flex flex-col gap-2 rounded-lg border p-3 transition ${tone}`}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  {ready ? (
+                    <CheckCircle2 className="size-5 text-brand-sage" aria-hidden />
+                  ) : correction ? (
+                    <AlertTriangle className="size-5 text-amber-600" aria-hidden />
+                  ) : (
+                    <Circle className="size-5 text-muted-foreground" aria-hidden />
+                  )}
+                  <div>
+                    <p className="text-sm font-medium">{d.label}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {correction
+                        ? "Lămuriri cerute — re-încărcați documentul"
+                        : ready
+                          ? "Document încărcat"
+                          : uploaded
+                            ? "Document încărcat (în așteptare)"
+                            : "Document obligatoriu — încă neîncărcat"}
+                    </p>
+                  </div>
+                </div>
+                {(!uploaded || correction) && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => openUpload(d.type)}
+                    className="gap-2"
+                  >
+                    <Upload className="size-4" /> {correction ? "Re-încarcă" : "Încarcă"}
+                  </Button>
+                )}
+              </div>
+              {correction && latest?.correction_reason && (
+                <p className="ml-8 rounded-md border border-amber-200 bg-white p-2 text-xs text-amber-800">
+                  <strong>Motiv:</strong> {latest.correction_reason}
+                </p>
+              )}
+            </li>
+          );
+        })}
+
+        {(() => {
+          const latest = latestByType.get("marriage_certificate");
+          const uploaded = !!latest;
+          const ready = isReady("marriage_certificate");
+          const correction = latest?.validation_status === "NEEDS_CORRECTION";
+          const tone = correction
+            ? "border-amber-400/60 bg-amber-50"
+            : uploaded && ready
+              ? "border-brand-sage/40 bg-brand-sage/5"
+              : "border-border bg-background";
+          return (
+            <li className={`flex flex-col gap-2 rounded-lg border p-3 transition ${tone}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="pt-0.5">
+                    <Checkbox
+                      id="marriage-applicable"
+                      checked={marriageApplicable}
+                      onCheckedChange={(v) => setMarriageApplicable(!!v)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="marriage-applicable" className="text-sm font-medium">
+                      Decedatul era căsătorit (necesită certificat de căsătorie)
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      {correction
+                        ? "Lămuriri cerute — re-încărcați documentul"
+                        : ready
+                          ? "Certificat de căsătorie încărcat"
+                          : marriageApplicable
+                            ? "Document obligatoriu — încă neîncărcat"
+                            : "Nu este necesar dacă persoana decedată nu era căsătorită"}
+                    </p>
+                  </div>
+                </div>
+                {marriageApplicable && (!uploaded || correction) && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => openUpload("marriage_certificate")}
+                    className="gap-2"
+                  >
+                    <Upload className="size-4" /> {correction ? "Re-încarcă" : "Încarcă"}
+                  </Button>
+                )}
+                {uploaded && ready && (
+                  <CheckCircle2 className="size-5 text-brand-sage" aria-hidden />
+                )}
+              </div>
+              {correction && latest?.correction_reason && (
+                <p className="ml-8 rounded-md border border-amber-200 bg-white p-2 text-xs text-amber-800">
+                  <strong>Motiv:</strong> {latest.correction_reason}
+                </p>
+              )}
+            </li>
+          );
+        })()}
+      </ul>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          disabled={!allReady || submitM.isPending}
+          onClick={() =>
+            submitM.mutate({
+              case_id: caseData.id,
+              marriage_certificate_applicable: marriageApplicable,
+            })
+          }
+          className="gap-2 bg-brand-navy hover:bg-brand-navy/90"
+        >
+          <Send className="size-4" />
+          {submitM.isPending
+            ? "Se trimite..."
+            : allReady
+              ? "Confirmă și notifică Starea Civilă"
+              : "Încărcați toate actele obligatorii"}
+        </Button>
+        {!allReady && (
+          <p className="text-xs text-muted-foreground">
+            Bifa pentru fiecare act apare în timp real după încărcarea în seif.
+          </p>
+        )}
+      </div>
+
+      <UploadDocumentDialog
+        open={uploadOpen}
+        onOpenChange={(v) => {
+          setUploadOpen(v);
+          if (!v) setPendingType(null);
+        }}
+        caseId={caseData.id}
+        forcedType={pendingType ?? undefined}
+      />
+    </div>
+  );
+}
+
+// ===================== Family: funeral provider picker flow =====================
+
+function FamilyFuneralPickerFlow({
+  caseData,
+  onConfirmed,
+}: {
+  caseData: any;
+  onConfirmed: () => void;
+}) {
+  const [phase, setPhase] = useState<"notice" | "browsing">("notice");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const selectM = useMutation({
+    mutationFn: selectFuneralProvider,
+    onSuccess: (r: any) => {
+      toast.success(`${r.provider_name} a fost notificată. Vă va contacta pentru programare.`);
+      onConfirmed();
+    },
+    onError: (e: any) => toast.error(e?.detail ?? e.message ?? "Eroare la selecție"),
+  });
+
+  const providers = useMemo(() => {
+    const inCluj = isClujNapoca(caseData.city, caseData.county);
+    const list = inCluj
+      ? FUNERAL_PROVIDERS.filter((p) => p.city.toLowerCase().includes("cluj"))
+      : FUNERAL_PROVIDERS;
+    return [...list].sort((a, b) => a.priceFrom - b.priceFrom);
+  }, [caseData.city, caseData.county]);
+
+  // Already chosen — show locked confirmation card.
+  if (caseData.selected_provider) {
+    return (
+      <div className="rounded-xl border-2 border-brand-sage bg-brand-sage/5 p-6">
+        <div className="mb-3 flex items-center gap-2">
+          <Lock className="size-5 text-brand-sage" />
+          <h2 className="font-display text-lg font-semibold text-brand-navy">
+            Casă funerară confirmată
+          </h2>
+        </div>
+        <p className="mb-3 text-sm text-muted-foreground">
+          Ați ales <strong className="text-foreground">{caseData.selected_provider.name}</strong>.
+          {caseData.selected_provider.phone && (
+            <>
+              {" "}
+              Telefon: <span className="font-mono">{caseData.selected_provider.phone}</span>.
+            </>
+          )}{" "}
+          Casa funerară a fost notificată și vă va contacta pentru programare.
+        </p>
+        <Badge className="bg-brand-sage text-white">Pas finalizat</Badge>
+      </div>
+    );
+  }
+
+  // Phase 1 — explicit notification with a CTA. Do NOT auto-show the list.
+  if (phase === "notice") {
+    return (
+      <div className="rounded-xl border border-border bg-card p-6">
+        <div className="mb-3 flex items-center gap-2">
+          <CheckCircle2 className="size-5 text-brand-sage" />
+          <h2 className="font-display text-lg font-semibold">Certificatul de deces a fost emis</h2>
+        </div>
+        <p className="mb-2 text-sm text-muted-foreground">
+          {caseData.certificate_number ? (
+            <>
+              Certificatul{" "}
+              <span className="font-mono text-foreground">{caseData.certificate_number}</span> este
+              disponibil în dosar.
+            </>
+          ) : (
+            "Certificatul de deces este disponibil în dosar."
+          )}
+        </p>
+        <p className="mb-5 text-sm text-muted-foreground">
+          Următorul pas este alegerea unei case funerare. Când sunteți pregătit, căutați una dintre
+          casele funerare partenere.
+        </p>
+        <Button
+          onClick={() => setPhase("browsing")}
+          className="gap-2 bg-brand-navy hover:bg-brand-navy/90"
+        >
+          <Search className="size-4" /> Caută casă funerară
+        </Button>
+      </div>
+    );
+  }
+
+  // Phase 2 — browse + select-with-lock.
+  const isLocked = !!selectedId;
 
   return (
     <div className="rounded-xl border-2 border-brand-sage bg-brand-sage/5 p-6">
       <div className="mb-2 flex items-center gap-2">
         <Building2 className="size-5 text-brand-navy" />
-        <h2 className="font-display text-lg font-semibold text-brand-navy">Case funerare recomandate în Cluj-Napoca</h2>
+        <h2 className="font-display text-lg font-semibold text-brand-navy">
+          Case funerare{" "}
+          {isClujNapoca(caseData.city, caseData.county) ? "în Cluj-Napoca" : "disponibile"}
+        </h2>
       </div>
       <p className="mb-5 text-sm text-muted-foreground">
-        {certIssued
-          ? <>Certificatul de deces {certNumber ? <span className="font-mono">{certNumber}</span> : ""} a fost emis. Mai jos găsiți {providers.length} case funerare din Cluj-Napoca, sortate crescător după preț.</>
-          : <>Mai jos găsiți {providers.length} case funerare din Cluj-Napoca, sortate crescător după preț. Puteți contacta oricând o casă funerară pentru informații.</>}
+        Sunt {providers.length} case funerare, sortate crescător după preț. Selectați una pentru a o
+        bloca; restul opțiunilor vor deveni inactive. Apoi confirmați pentru a o notifica.
       </p>
-      {providers.length === 0 && (
-        <p className="text-sm text-muted-foreground">Nu există case funerare listate pentru Cluj-Napoca.</p>
-      )}
-      {providers.length > 0 && (
-        <ul className="space-y-3">
-          {providers.map((p, i) => (
-            <li key={p.id} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+
+      <ul className="space-y-3">
+        {providers.map((p, i) => {
+          const selected = selectedId === p.id;
+          const dim = isLocked && !selected;
+          return (
+            <li
+              key={p.id}
+              className={`flex flex-col gap-3 rounded-lg border bg-card p-4 sm:flex-row sm:items-center sm:justify-between ${
+                selected ? "border-brand-sage ring-2 ring-brand-sage" : "border-border"
+              } ${dim ? "opacity-50" : ""}`}
+            >
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  {i === 0 && <Badge className="bg-brand-sage text-white">Cel mai accesibil</Badge>}
+                  {i === 0 && !isLocked && (
+                    <Badge className="bg-brand-sage text-white">Cel mai accesibil</Badge>
+                  )}
+                  {selected && <Badge className="bg-brand-navy text-white">Selectat</Badge>}
                   <p className="truncate font-medium text-foreground">{p.name}</p>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground flex items-center gap-1 flex-wrap">
                   <MapPin className="size-3" /> {p.city}
                   {" • "}
-                  <Star className="inline size-3 -mt-0.5 fill-current text-amber-500" />
-                  {" "}{p.rating.toFixed(1)}
-                  {" • "}{p.notes}
+                  <Star className="inline size-3 -mt-0.5 fill-current text-amber-500" />{" "}
+                  {p.rating.toFixed(1)}
+                  {" • "}
+                  {p.notes}
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -340,39 +1131,218 @@ function FuneralProviderPicker({ certNumber, status }: { certNumber?: string; st
                     {p.priceFrom.toLocaleString("ro-RO")} RON
                   </p>
                 </div>
-                <Button asChild size="sm" className="gap-2 bg-brand-navy hover:bg-brand-navy/90">
-                  <a href={`tel:${p.phone.replace(/\s+/g, "")}`} aria-label={`Sună ${p.name}`}>
+                <Button asChild size="sm" variant="outline" disabled={dim}>
+                  <a
+                    href={`tel:${p.phone.replace(/\s+/g, "")}`}
+                    aria-label={`Sună ${p.name}`}
+                    className="gap-2"
+                  >
                     <Phone className="size-4" /> {p.phone}
                   </a>
                 </Button>
                 <Button
                   size="sm"
-                  variant="outline"
-                  className="border-brand-navy text-brand-navy hover:bg-brand-navy/5"
-                  onClick={() => toast.success("Ați ales " + p.name + ". Casa funerară va fi notificată.")}
-                  aria-label={"Alege " + p.name}
+                  className={
+                    selected
+                      ? "bg-brand-sage hover:bg-brand-sage/90 text-white"
+                      : "bg-brand-navy hover:bg-brand-navy/90"
+                  }
+                  disabled={dim || selectM.isPending}
+                  onClick={() => setSelectedId(selected ? null : p.id)}
+                  aria-label={selected ? `Anulează selecția ${p.name}` : `Alege ${p.name}`}
                 >
-                  Alege
+                  {selected ? "Selectat ✓" : "Alege"}
                 </Button>
               </div>
             </li>
-          ))}
-        </ul>
-      )}
+          );
+        })}
+      </ul>
+
+      <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-border pt-4">
+        <Button
+          disabled={!selectedId || selectM.isPending}
+          onClick={() => {
+            if (!selectedId) return;
+            const p = providers.find((x) => x.id === selectedId);
+            if (!p) return;
+            selectM.mutate({
+              case_id: caseData.id,
+              provider_id: p.id,
+              provider_name: p.name,
+              provider_phone: p.phone,
+            });
+          }}
+          className="gap-2 bg-brand-navy hover:bg-brand-navy/90"
+        >
+          <Send className="size-4" />
+          {selectM.isPending ? "Se trimite..." : "Confirmă și trimite"}
+        </Button>
+        {selectedId && !selectM.isPending && (
+          <Button variant="ghost" onClick={() => setSelectedId(null)}>
+            Schimbă alegerea
+          </Button>
+        )}
+        {!selectedId && (
+          <p className="text-xs text-muted-foreground">
+            Alegeți o casă funerară pentru a activa butonul de confirmare.
+          </p>
+        )}
+      </div>
+
       <p className="mt-4 text-xs text-muted-foreground">
-        Prețurile sunt orientative, pentru pachetul de bază. Confirmați costurile direct cu casa funerară.
+        Prețurile sunt orientative, pentru pachetul de bază. Confirmați costurile direct cu casa
+        funerară.
+      </p>
+    </div>
+  );
+}
+
+function FuneralProviderReadOnlyCard({ caseData }: { caseData: any }) {
+  if (!caseData.selected_provider) {
+    return (
+      <div className="rounded-xl border border-border bg-card p-6">
+        <h2 className="mb-2 font-display text-lg font-semibold">
+          Așteptăm alegerea casei funerare
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Aparținătorul a fost notificat că certificatul de deces a fost emis și urmează să aleagă o
+          casă funerară.
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-xl border border-border bg-card p-6">
+      <div className="mb-2 flex items-center gap-2">
+        <Building2 className="size-5 text-brand-navy" />
+        <h2 className="font-display text-lg font-semibold">Casă funerară aleasă</h2>
+      </div>
+      <p className="text-sm text-muted-foreground">
+        Familia a ales{" "}
+        <strong className="text-foreground">{caseData.selected_provider.name}</strong>
+        {caseData.selected_provider.phone && (
+          <>
+            {" "}
+            (tel: <span className="font-mono">{caseData.selected_provider.phone}</span>)
+          </>
+        )}
+        .
       </p>
     </div>
   );
 }
 
 function DocumentVault({ docs, caseId }: { docs: any[]; caseId: string }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <div className="flex items-center justify-between border-b border-border bg-muted/30 px-6 py-4">
+        <h2 className="font-display text-sm font-semibold">Seiful cu documente</h2>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground">{docs.length} documente</span>
+          <Button size="sm" variant="outline" className="gap-2" onClick={() => setOpen(true)}>
+            <Upload className="size-4" /> Încarcă
+          </Button>
+          <UploadDocumentDialog open={open} onOpenChange={setOpen} caseId={caseId} />
+        </div>
+      </div>
+      <div className="divide-y divide-border">
+        {docs.length === 0 && (
+          <p className="p-6 text-sm text-muted-foreground">Niciun document încă.</p>
+        )}
+        {docs.map((d) => {
+          const isAutoGen = d.auto_generated;
+          const status = d.validation_status as string | undefined;
+          const isValidated = status === "VALIDATED";
+          const isCorrection = status === "NEEDS_CORRECTION";
+          return (
+            <div key={d.id} className="flex flex-col gap-2 p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex size-10 items-center justify-center rounded bg-brand-navy/5">
+                    <FileText className="size-5 text-brand-navy" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">
+                      {d.title || DOC_TYPE_LABELS[d.type]}
+                      {isAutoGen && (
+                        <Badge
+                          className="ml-2 bg-brand-navy/10 text-brand-navy"
+                          variant="secondary"
+                        >
+                          generat automat
+                        </Badge>
+                      )}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {DOC_TYPE_LABELS[d.type]} • {formatDateTimeRo(d.issued_at)}
+                      {d.signed && " • Semnat"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {isValidated && (
+                    <Badge variant="outline" className="border-brand-sage text-brand-sage">
+                      Validat
+                    </Badge>
+                  )}
+                  {isCorrection && (
+                    <Badge variant="outline" className="border-amber-500 text-amber-700">
+                      Lămuriri cerute
+                    </Badge>
+                  )}
+                  {d.storage_path && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      aria-label={`Descarcă ${d.title || DOC_TYPE_LABELS[d.type]}`}
+                      onClick={() => downloadDoc(d.id)}
+                      className="gap-1"
+                    >
+                      <Download className="size-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+              {isCorrection && d.correction_reason && (
+                <p className="ml-14 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+                  <strong>Motiv lămuriri:</strong> {d.correction_reason}
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {/* Hidden file input retained to keep ref shape stable for tests/automation. */}
+      <input ref={fileRef} type="file" hidden />
+    </div>
+  );
+}
+
+function UploadDocumentDialog({
+  open,
+  onOpenChange,
+  caseId,
+  forcedType,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  caseId: string;
+  forcedType?: string;
+}) {
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-  const [docType, setDocType] = useState<string>("id_card_deceased");
+  const [docType, setDocType] = useState<string>(forcedType ?? "id_card_deceased");
   const [title, setTitle] = useState("");
-  const [open, setOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  // Sync forcedType when the trigger changes between rows.
+  useMemo(() => {
+    if (forcedType) setDocType(forcedType);
+  }, [forcedType]);
 
   const handleUpload = async () => {
     const file = fileRef.current?.files?.[0];
@@ -382,7 +1352,7 @@ function DocumentVault({ docs, caseId }: { docs: any[]; caseId: string }) {
     try {
       await uploadDocument(caseId, file, docType, title.trim());
       toast.success("Document încărcat.");
-      setOpen(false);
+      onOpenChange(false);
       setTitle("");
       if (fileRef.current) fileRef.current.value = "";
       qc.invalidateQueries({ queryKey: ["case", caseId] });
@@ -393,87 +1363,56 @@ function DocumentVault({ docs, caseId }: { docs: any[]; caseId: string }) {
     }
   };
 
-  const handleDownload = async (id: string) => {
-    try {
-      const res = await getDocumentDownloadUrl({ document_id: id });
-      window.open(res.url, "_blank");
-    } catch (e: any) {
-      toast.error(e?.detail ?? e.message ?? "Eroare la descărcare");
-    }
-  };
-
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-      <div className="flex items-center justify-between border-b border-border bg-muted/30 px-6 py-4">
-        <h2 className="font-display text-sm font-semibold">Seiful cu documente</h2>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-muted-foreground">{docs.length} documente</span>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" variant="outline" className="gap-2">
-                <Upload className="size-4" /> Încarcă
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Încarcă document</DialogTitle></DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label>Tip document</Label>
-                  <Select value={docType} onValueChange={(v) => setDocType(v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="id_card_deceased">CI/BI decedat</SelectItem>
-                      <SelectItem value="birth_certificate">Certificat de naștere decedat</SelectItem>
-                      <SelectItem value="marriage_certificate">Certificat de căsătorie</SelectItem>
-                      <SelectItem value="id_card_declarant">CI declarant</SelectItem>
-                      <SelectItem value="other">Alt document</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Titlu</Label>
-                  <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: CI decedat" />
-                </div>
-                <div>
-                  <Label>Fișier (doar PDF)</Label>
-                  <Input ref={fileRef} type="file" accept="application/pdf,.pdf" />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button onClick={handleUpload} disabled={uploading} className="bg-brand-navy hover:bg-brand-navy/90">
-                  {uploading ? "Se încarcă..." : "Încarcă document"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
-      <div className="divide-y divide-border">
-        {docs.length === 0 && <p className="p-6 text-sm text-muted-foreground">Niciun document încă.</p>}
-        {docs.map((d) => (
-          <div key={d.id} className="flex items-center justify-between gap-4 p-4">
-            <div className="flex items-center gap-4">
-              <div className="flex size-10 items-center justify-center rounded bg-brand-navy/5">
-                <FileText className="size-5 text-brand-navy" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">{d.title || DOC_TYPE_LABELS[d.type]}</p>
-                <p className="text-xs text-muted-foreground">
-                  {DOC_TYPE_LABELS[d.type]} • {formatDateTimeRo(d.issued_at)}{d.signed && " • Semnat"}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {d.signed && <Badge variant="outline" className="text-brand-sage">Validat</Badge>}
-              {d.storage_path && (
-                <Button size="sm" variant="ghost" aria-label={`Descarcă ${d.title || DOC_TYPE_LABELS[d.type]}`} onClick={() => handleDownload(d.id)} className="gap-1">
-                  <Download className="size-4" />
-                </Button>
-              )}
-            </div>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Încarcă document</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label>Tip document</Label>
+            <Select value={docType} onValueChange={(v) => setDocType(v)} disabled={!!forcedType}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="id_card_deceased">CI/BI decedat</SelectItem>
+                <SelectItem value="birth_certificate">Certificat de naștere decedat</SelectItem>
+                <SelectItem value="marriage_certificate">Certificat de căsătorie</SelectItem>
+                <SelectItem value="id_card_declarant">CI declarant</SelectItem>
+                <SelectItem value="other">Alt document</SelectItem>
+              </SelectContent>
+            </Select>
+            {forcedType && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Tipul este pre-completat din lista de acte obligatorii.
+              </p>
+            )}
           </div>
-        ))}
-      </div>
-    </div>
+          <div>
+            <Label>Titlu</Label>
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Ex: CI decedat"
+            />
+          </div>
+          <div>
+            <Label>Fișier (doar PDF)</Label>
+            <Input ref={fileRef} type="file" accept="application/pdf,.pdf" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button
+            onClick={handleUpload}
+            disabled={uploading}
+            className="bg-brand-navy hover:bg-brand-navy/90"
+          >
+            {uploading ? "Se încarcă..." : "Încarcă document"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
