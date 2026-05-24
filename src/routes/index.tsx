@@ -1,5 +1,73 @@
+import { useState, useEffect, useRef } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
+
+interface CounterProps {
+  target: number;
+  duration?: number;
+  suffix?: string;
+  format?: boolean;
+}
+
+function AnimatedCounter({ target, duration = 1500, suffix = "", format = false }: CounterProps) {
+  const [count, setCount] = useState(0);
+  const elementRef = useRef<HTMLSpanElement>(null);
+  const hasAnimated = useRef(false);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (entry.isIntersecting && !hasAnimated.current) {
+          hasAnimated.current = true;
+          let startTimestamp: number | null = null;
+
+          const step = (timestamp: number) => {
+            if (!startTimestamp) startTimestamp = timestamp;
+            const elapsed = timestamp - startTimestamp;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            // Ease out quad
+            const easeProgress = progress * (2 - progress);
+            
+            setCount(Math.floor(easeProgress * target));
+
+            if (progress < 1) {
+              window.requestAnimationFrame(step);
+            } else {
+              setCount(target);
+            }
+          };
+
+          window.requestAnimationFrame(step);
+          observer.unobserve(entry.target);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (elementRef.current) {
+      observer.observe(elementRef.current);
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [target, duration]);
+
+  const formatNumber = (num: number) => {
+    if (!format) return num.toString();
+    // Romanian dot separator for thousands
+    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  };
+
+  return (
+    <span ref={elementRef}>
+      {formatNumber(count)}
+      {suffix}
+    </span>
+  );
+}
 import {
   Heart,
   Stethoscope,
@@ -151,14 +219,19 @@ function Landing() {
         <div className="mx-auto max-w-7xl px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-4 divide-y divide-border/20 md:divide-y-0 md:divide-x divide-border/20">
             {[
-              { val: "242.918", desc: "decese înregistrate în România în 2023" },
-              { val: "664", desc: "decese în medie în fiecare zi" },
-              { val: "3 zile", desc: "termen legal de declarare — L. 119/1996" },
-              { val: "7 copii", desc: "ale certificatului de deces necesare în medie" },
+              { target: 242918, format: true, suffix: "", desc: "decese înregistrate în România în 2023" },
+              { target: 664, format: false, suffix: "", desc: "decese în medie în fiecare zi" },
+              { target: 3, format: false, suffix: " zile", desc: "termen legal de declarare — L. 119/1996" },
+              { target: 7, format: false, suffix: " copii", desc: "ale certificatului de deces necesare în medie" },
             ].map((stat, idx) => (
               <div key={idx} className="text-center px-4 pt-6 md:pt-0">
                 <div className="font-display text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-brand-navy">
-                  {stat.val}
+                  <AnimatedCounter
+                    target={stat.target}
+                    format={stat.format}
+                    suffix={stat.suffix}
+                    duration={1500}
+                  />
                 </div>
                 <p className="mt-2 text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-[200px] mx-auto font-medium">
                   {stat.desc}
