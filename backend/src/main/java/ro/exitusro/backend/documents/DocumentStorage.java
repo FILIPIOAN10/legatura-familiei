@@ -38,6 +38,24 @@ public class DocumentStorage {
         return new Stored(target.toString(), file.getContentType(), file.getSize());
     }
 
+    /**
+     * Stores raw bytes (e.g. server-generated PDFs) under {caseId}/{uuid}{ext}.
+     * The extension is derived from the provided filename (defaults to .bin).
+     */
+    public Stored storeBytes(byte[] data, String caseId, String filename, String mimeType) throws IOException {
+        String safeName = (filename != null && !filename.isBlank()) ? filename : "file.bin";
+        String ext = "";
+        int dot = safeName.lastIndexOf('.');
+        if (dot >= 0 && dot < safeName.length() - 1) ext = safeName.substring(dot);
+
+        Path caseDir = root.resolve(caseId);
+        Files.createDirectories(caseDir);
+        String name = UUID.randomUUID() + ext;
+        Path target = caseDir.resolve(name);
+        Files.write(target, data);
+        return new Stored(target.toString(), mimeType, (long) data.length);
+    }
+
     public Path resolve(String storagePath) {
         Path p = Paths.get(storagePath).toAbsolutePath().normalize();
         if (!p.startsWith(root)) {

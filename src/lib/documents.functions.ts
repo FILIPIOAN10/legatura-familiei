@@ -10,17 +10,32 @@ export async function registerUploadedDocument(data: {
 }
 
 export async function getDocumentDownloadUrl(data: { document_id: string }) {
-  return api.get<{ url: string; title: string }>(
-    `/api/documents/${data.document_id}/download-url`,
-  );
+  return api.get<{ url: string; title: string }>(`/api/documents/${data.document_id}/download-url`);
 }
 
-export async function uploadDocument(
-  caseId: string,
-  file: File,
-  type: string,
-  title: string,
-) {
+export async function validateDocument(documentId: string) {
+  return api.post<DocumentSummaryDto>(`/api/documents/${documentId}/validate`, {});
+}
+
+export async function requestDocumentClarification(documentId: string, note: string) {
+  return api.post<DocumentSummaryDto>(`/api/documents/${documentId}/request-clarification`, {
+    note,
+  });
+}
+
+export type DocumentSummaryDto = {
+  id: string;
+  type: string;
+  title: string;
+  signed: boolean;
+  validated: boolean;
+  validated_at?: string | null;
+  validation_note?: string | null;
+  issued_at: string;
+  storage_path?: string | null;
+};
+
+export async function uploadDocument(caseId: string, file: File, type: string, title: string) {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("case_id", caseId);

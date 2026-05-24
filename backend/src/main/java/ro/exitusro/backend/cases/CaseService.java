@@ -1,5 +1,7 @@
 package ro.exitusro.backend.cases;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -7,6 +9,11 @@ import ro.exitusro.backend.cases.dto.CreateCaseRequest;
 import ro.exitusro.backend.cases.dto.IssueCmcdRequest;
 import ro.exitusro.backend.cases.dto.RequestCorrectionsRequest;
 import ro.exitusro.backend.cases.dto.ScheduleFuneralRequest;
+import ro.exitusro.backend.documents.CmcdPdfGenerator;
+import ro.exitusro.backend.documents.DeathCertificatePdfGenerator;
+import ro.exitusro.backend.documents.DocumentEntity;
+import ro.exitusro.backend.documents.DocumentRepository;
+import ro.exitusro.backend.documents.DocumentStorage;
 import ro.exitusro.backend.notifications.NotificationService;
 import ro.exitusro.backend.user.Role;
 import ro.exitusro.backend.user.UserAccount;
@@ -23,14 +30,29 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 @Service
 public class CaseService {
 
+    private static final Logger log = LoggerFactory.getLogger(CaseService.class);
+
     private final CaseRepository repository;
     private final NotificationService notifications;
+    private final DocumentRepository documents;
+    private final DocumentStorage documentStorage;
+    private final CmcdPdfGenerator cmcdPdf;
+    private final DeathCertificatePdfGenerator deathCertPdf;
     private final AtomicInteger sequence = new AtomicInteger(0);
     private final SecureRandom random = new SecureRandom();
 
-    public CaseService(CaseRepository repository, NotificationService notifications) {
+    public CaseService(CaseRepository repository,
+                       NotificationService notifications,
+                       DocumentRepository documents,
+                       DocumentStorage documentStorage,
+                       CmcdPdfGenerator cmcdPdf,
+                       DeathCertificatePdfGenerator deathCertPdf) {
         this.repository = repository;
         this.notifications = notifications;
+        this.documents = documents;
+        this.documentStorage = documentStorage;
+        this.cmcdPdf = cmcdPdf;
+        this.deathCertPdf = deathCertPdf;
         // Initialise sequence from existing data so case numbers remain monotonic across restarts.
         long existing = repository.count();
         this.sequence.set((int) existing);
@@ -94,6 +116,8 @@ public class CaseService {
         c.setStatus(CaseStatus.CMCD_ISSUED);
         c.addAudit("CMCD emis de medic — cauză: " + req.causeMain(), actor);
 
+        generateAndStoreCmcdPdf(c, actor);
+
         notifications.push(Role.FAMILY,
                 "CMCD a fost emis",
                 "Medicul a emis Certificatul Medical pentru dosarul " + c.getCaseNumber() +
@@ -104,6 +128,67 @@ public class CaseService {
                 "Dosarul " + c.getCaseNumber() + " (" + c.getDeceasedFullName() + ") așteaptă validare.",
                 "civil_pending", c);
         return c;
+    }
+
+    /**
+     * Generates a CMCD PDF (with demo/dummy data) and saves it in the case's
+     * document safe so the civil officer can download it for verification.
+     * Failures are logged but never block CMCD issuance — the document is a
+     * convenience for the demo flow, not a hard requirement.
+     */
+    private void generateAndStoreCmcdPdf(CaseEntity c, UserAccount actor) {
+        try {
+            byte[] pdf = cmcdPdf.generate(c);
+            String filename = cmcdPdf.suggestedFilename(c);
+            String title = cmcdPdf.suggestedTitle(c);
+
+            DocumentStorage.Stored stored = documentStorage.storeBytes(
+                    pdf, c.getId(), filename, "application/pdf");
+
+            DocumentEntity doc = new DocumentEntity(c, "cmcd", title);
+            doc.setStoragePath(stored.path());
+            doc.setMimeType(stored.mimeType());
+            doc.setSizeBytes(stored.size());
+            doc.setSigned(true);
+            doc.setUploadedBy(actor);
+            documents.save(doc);
+
+            c.addAudit("CMCD PDF generat automat și adăugat în Seif", actor);
+        } catch (Exception ex) {
+            log.error("Failed to auto-generate CMCD PDF for case {}: {}", c.getCaseNumber(), ex.getMessage(), ex);
+            c.addAudit("Atenție: generarea automată a PDF-ului CMCD a eșuat (" + ex.getMessage() + ")", actor);
+        }
+    }
+
+    /**
+     * Generates the Death Certificate PDF (with placeholder formatting) and adds
+     * it to the case's document safe right after the civil officer validates and
+     * issues the certificate. The document is pre-validated since the same actor
+     * issues it. Failures never block certificate issuance.
+     */
+    private void generateAndStoreDeathCertPdf(CaseEntity c, UserAccount actor) {
+        try {
+            byte[] pdf = deathCertPdf.generate(c);
+            String filename = deathCertPdf.suggestedFilename(c);
+            String title = deathCertPdf.suggestedTitle(c);
+
+            DocumentStorage.Stored stored = documentStorage.storeBytes(
+                    pdf, c.getId(), filename, "application/pdf");
+
+            DocumentEntity doc = new DocumentEntity(c, "death_certificate", title);
+            doc.setStoragePath(stored.path());
+            doc.setMimeType(stored.mimeType());
+            doc.setSizeBytes(stored.size());
+            doc.setSigned(true);
+            doc.setUploadedBy(actor);
+            doc.markValidated(actor);
+            documents.save(doc);
+
+            c.addAudit("Certificat de deces PDF generat automat și adăugat în Seif", actor);
+        } catch (Exception ex) {
+            log.error("Failed to auto-generate Death Certificate PDF for case {}: {}", c.getCaseNumber(), ex.getMessage(), ex);
+            c.addAudit("Atenție: generarea automată a PDF-ului certificatului de deces a eșuat (" + ex.getMessage() + ")", actor);
+        }
     }
 
     @Transactional
@@ -119,6 +204,8 @@ public class CaseService {
         c.setCertificate(certNumber, actor);
         c.setStatus(CaseStatus.DEATH_CERT_ISSUED);
         c.addAudit("Certificat de deces " + certNumber + " emis de Starea Civilă", actor);
+
+        generateAndStoreDeathCertPdf(c, actor);
 
         notifications.push(Role.FAMILY,
                 "Certificat de deces emis",
