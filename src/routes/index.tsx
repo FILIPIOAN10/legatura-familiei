@@ -247,7 +247,10 @@ function Landing() {
 
           {/* Timeline Connector Line */}
           <div className="hidden lg:flex max-w-4xl mx-auto items-center justify-between px-16 mt-16 relative select-none">
-            <div className="absolute left-[70px] right-[70px] top-1/2 -translate-y-1/2 h-[2px] bg-border/40 -z-10" />
+            <div 
+              className="absolute left-[70px] right-[70px] top-1/2 -translate-y-1/2 h-[3px] -z-10" 
+              style={{ background: "linear-gradient(to right, oklch(0.62 0.06 145) 33.3%, #cbd5e1 33.3%)" }}
+            />
             {[
               { num: "01", active: true },
               { num: "02", active: true },
@@ -430,6 +433,55 @@ function Landing() {
           </div>
         </div>
       </section>
+
+      {/* CTA Section */}
+      <section className="bg-brand-navy py-20 text-center relative overflow-hidden">
+        <div className="mx-auto max-w-4xl px-6 relative z-10">
+          <h2 className="font-display text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
+            În momentele grele, tehnologia poate ajuta.
+          </h2>
+          <p className="mt-4 text-white/80 max-w-2xl mx-auto text-sm sm:text-base font-medium leading-relaxed font-medium">
+            ExitusRO reduce birocrația și oferă claritate familiilor și instituțiilor în cele mai dificile momente.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+            <Link to="/auth/signup">
+              <Button className="bg-white hover:bg-white/90 text-brand-navy font-semibold rounded-lg px-6 py-3.5 shadow-sm hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center gap-2">
+                Deschide un dosar <ArrowRight className="size-4" />
+              </Button>
+            </Link>
+            <Link to="/auth/login">
+              <Button variant="outline" className="border-white/20 hover:border-white/40 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-lg px-6 py-3.5 hover:scale-[1.01] active:scale-[0.99] transition-all shadow-sm">
+                Autentificare
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-white border-t border-border/40 py-8">
+        <div className="mx-auto max-w-7xl px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground font-medium">
+          {/* Left Brand Area */}
+          <div className="flex items-center gap-3 select-none">
+            <div className="flex h-6 w-6 items-center justify-center rounded bg-brand-navy font-display text-[9px] font-bold text-white tracking-wider">
+              EX
+            </div>
+            <span className="font-display text-xs font-bold text-brand-navy">ExitusRO</span>
+            <span className="text-muted-foreground/60">|</span>
+            <span>© 2026 — Digitalizarea procedurilor post-deces</span>
+          </div>
+          {/* Right Footer Links */}
+          <div className="flex items-center gap-6">
+            <Link to="/legal-library" className="hover:text-brand-navy transition-colors">
+              Bibliotecă legală
+            </Link>
+            <Link to="/emergency-24h" className="hover:text-brand-navy transition-colors">
+              Ghid 24h
+            </Link>
+            <span className="cursor-default text-muted-foreground/40">GDPR</span>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
