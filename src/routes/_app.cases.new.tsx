@@ -25,6 +25,17 @@ function NewCase() {
   });
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
+  const fillDummy = () => setForm({
+    deceased_full_name: "Ion Gheorghe Marinescu",
+    deceased_dob: "1948-03-15",
+    deceased_dod: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString().slice(0, 16),
+    death_location: "Spital Clinic Județean Cluj-Napoca",
+    death_cause_type: "natural",
+    city: "Cluj-Napoca",
+    county: "Cluj",
+    address: "Str. Horea nr. 14, ap. 3, Cluj-Napoca, jud. Cluj",
+  });
+
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setBusy(true);
@@ -47,7 +58,13 @@ function NewCase() {
         constatator este notificat. Veți putea atașa documente ulterior.
       </p>
 
-      <form onSubmit={submit} className="mt-8 space-y-6 rounded-xl border border-border bg-card p-6">
+      <div className="mt-4 flex justify-end">
+        <Button type="button" variant="outline" size="sm" onClick={fillDummy}>
+          Completează cu date de test
+        </Button>
+      </div>
+
+      <form onSubmit={submit} className="mt-2 space-y-6 rounded-xl border border-border bg-card p-6">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="md:col-span-2"><Label htmlFor="nc-name">Nume complet decedat</Label><Input id="nc-name" required value={form.deceased_full_name} onChange={(e) => set("deceased_full_name", e.target.value)} /></div>
           <div><Label htmlFor="nc-dob">Data nașterii</Label><Input id="nc-dob" type="date" value={form.deceased_dob} onChange={(e) => set("deceased_dob", e.target.value)} /></div>
