@@ -11,6 +11,7 @@ interface CounterProps {
 
 function AnimatedCounter({ target, duration = 1500, suffix = "", format = false }: CounterProps) {
   const [count, setCount] = useState(0);
+  const [visible, setVisible] = useState(false);
   const elementRef = useRef<HTMLSpanElement>(null);
   const hasAnimated = useRef(false);
 
@@ -20,6 +21,7 @@ function AnimatedCounter({ target, duration = 1500, suffix = "", format = false 
         const [entry] = entries;
         if (entry.isIntersecting && !hasAnimated.current) {
           hasAnimated.current = true;
+          setVisible(true);
           let startTimestamp: number | null = null;
 
           const step = (timestamp: number) => {
@@ -43,7 +45,7 @@ function AnimatedCounter({ target, duration = 1500, suffix = "", format = false 
           observer.unobserve(entry.target);
         }
       },
-      { threshold: 0.1 }
+      { threshold: 0.6 } // Only trigger when 60% of the block is in the viewport
     );
 
     if (elementRef.current) {
@@ -62,7 +64,12 @@ function AnimatedCounter({ target, duration = 1500, suffix = "", format = false 
   };
 
   return (
-    <span ref={elementRef}>
+    <span
+      ref={elementRef}
+      className={`inline-block transition-all duration-700 transform ${
+        visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"
+      }`}
+    >
       {formatNumber(count)}
       {suffix}
     </span>
