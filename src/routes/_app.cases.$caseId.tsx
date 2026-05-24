@@ -11,7 +11,12 @@ import {
   submitFamilyDocuments,
   selectFuneralProvider,
 } from "@/lib/cases.functions";
-import { uploadDocument, getDocumentDownloadUrl } from "@/lib/documents.functions";
+import {
+  uploadDocument,
+  getDocumentDownloadUrl,
+  validateDocument,
+  requestDocumentCorrection,
+} from "@/lib/documents.functions";
 import { CaseStepper } from "@/components/case-stepper";
 import { DeadlineCard } from "@/components/deadline-card";
 import { useAuth, primaryRole } from "@/hooks/use-auth";
@@ -54,6 +59,9 @@ import {
   Hourglass,
   Lock,
   Send,
+  ShieldCheck,
+  AlertTriangle,
+  MessageSquareWarning,
 } from "lucide-react";
 import { FUNERAL_PROVIDERS } from "@/lib/funeral-providers";
 
@@ -224,37 +232,14 @@ function ActionPanel({ caseData, documents }: { caseData: any; documents: any[] 
 
   if (role === "civil_officer" && caseData.status === "AWAITING_CIVIL_OFFICER") {
     return (
-      <div className="rounded-xl border border-border bg-card p-6">
-        <div className="mb-4 flex items-center gap-2">
-          <Building2 className="size-5 text-brand-navy" />
-          <h2 className="font-display text-lg font-semibold">Înregistrare în SIIEASC</h2>
-        </div>
-        <p className="mb-4 text-sm text-muted-foreground">
-          Verificați CMCD-ul și actele anexate (CI/BI decedat, certificat de naștere, certificat de
-          căsătorie, CI declarant). La validare se înregistrează decesul în <strong>SIIEASC</strong>{" "}
-          (Sistemul Informatic Integrat pentru Emiterea Actelor de Stare Civilă), se generează actul
-          de deces și certificatul de deces, și, dacă e cazul, adeverința de înhumare.
-        </p>
-        <ul className="mb-6 space-y-1 text-xs text-muted-foreground">
-          <li>✓ CMCD primit de la medic</li>
-          <li>✓ Acte aparținător încărcate și confirmate</li>
-          <li>→ Înregistrare în SIIEASC și emitere certificat</li>
-        </ul>
-        <div className="flex flex-wrap gap-3">
-          <Button
-            onClick={() => validateM.mutate({ case_id: caseData.id })}
-            disabled={validateM.isPending}
-            className="bg-brand-navy hover:bg-brand-navy/90"
-          >
-            {validateM.isPending
-              ? "Se înregistrează în SIIEASC..."
-              : "Înregistrează în SIIEASC și emite certificat"}
-          </Button>
-          <CorrectionsDialog
-            onSubmit={(reason) => correctionsM.mutate({ case_id: caseData.id, reason })}
-          />
-        </div>
-      </div>
+      <CivilOfficerReviewPanel
+        caseData={caseData}
+        documents={documents}
+        onIssueCert={() => validateM.mutate({ case_id: caseData.id })}
+        issuingCert={validateM.isPending}
+        onRequestCaseCorrections={(reason) => correctionsM.mutate({ case_id: caseData.id, reason })}
+        onChanged={invalidate}
+      />
     );
   }
 
@@ -487,6 +472,264 @@ function CorrectionsDialog({ onSubmit }: { onSubmit: (reason: string) => void })
   );
 }
 
+// ===================== Civil officer: per-document review =====================
+
+const FAMILY_REQUIRED_TYPES = [
+  "id_card_deceased",
+  "birth_certificate",
+  "id_card_declarant",
+] as const;
+
+const VALIDATION_LABEL: Record<string, string> = {
+  PENDING: "În așteptare",
+  VALIDATED: "Validat",
+  NEEDS_CORRECTION: "Lămuriri cerute",
+};
+
+function CivilOfficerReviewPanel({
+  caseData,
+  documents,
+  onIssueCert,
+  issuingCert,
+  onRequestCaseCorrections,
+  onChanged,
+}: {
+  caseData: any;
+  documents: any[];
+  onIssueCert: () => void;
+  issuingCert: boolean;
+  onRequestCaseCorrections: (reason: string) => void;
+  onChanged: () => void;
+}) {
+  const validateM = useMutation({
+    mutationFn: validateDocument,
+    onSuccess: () => {
+      toast.success("Document validat.");
+      onChanged();
+    },
+    onError: (e: any) => toast.error(e?.detail ?? e.message ?? "Eroare la validare"),
+  });
+  const corrM = useMutation({
+    mutationFn: requestDocumentCorrection,
+    onSuccess: () => {
+      toast.success("Solicitare de lămuriri trimisă aparținătorului.");
+      onChanged();
+    },
+    onError: (e: any) => toast.error(e?.detail ?? e.message ?? "Eroare la solicitare"),
+  });
+
+  // Show only the latest revision per document type. Older rejected revisions
+  // remain visible from the seif but don't clutter the review checklist.
+  const latestByType = useMemo(() => {
+    const map = new Map<string, any>();
+    for (const d of [...documents].sort(
+      (a, b) => new Date(b.issued_at).getTime() - new Date(a.issued_at).getTime(),
+    )) {
+      if (!map.has(d.type)) map.set(d.type, d);
+    }
+    return map;
+  }, [documents]);
+
+  const requiredDocs = FAMILY_REQUIRED_TYPES.map((t) => latestByType.get(t)).filter(Boolean);
+  const optionalMarriage = latestByType.get("marriage_certificate");
+  const reviewDocs = optionalMarriage ? [...requiredDocs, optionalMarriage] : requiredDocs;
+  const cmcdDoc = latestByType.get("cmcd");
+
+  const allValidated = reviewDocs.every((d) => d.validation_status === "VALIDATED");
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-6">
+      <div className="mb-4 flex items-center gap-2">
+        <Building2 className="size-5 text-brand-navy" />
+        <h2 className="font-display text-lg font-semibold">
+          Verificare documente & emitere certificat
+        </h2>
+      </div>
+      <p className="mb-5 text-sm text-muted-foreground">
+        Descărcați și verificați fiecare document. Apăsați <strong>Validează</strong> pe cele
+        corecte sau <strong>Cere lămuriri</strong> pentru a întoarce documentul la aparținător cu un
+        motiv. Butonul de emitere SIIEASC se activează doar după ce toate actele aparținătorului
+        sunt validate.
+      </p>
+
+      {cmcdDoc && (
+        <div className="mb-5 rounded-lg border border-brand-navy/20 bg-brand-navy/5 p-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
+              <FileText className="size-5 text-brand-navy" />
+              <div>
+                <p className="text-sm font-medium">{cmcdDoc.title}</p>
+                <p className="text-xs text-muted-foreground">
+                  CMCD generat automat după semnarea de către medic •{" "}
+                  {formatDateTimeRo(cmcdDoc.issued_at)}
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-2"
+              onClick={() => downloadDoc(cmcdDoc.id)}
+            >
+              <Download className="size-4" /> Descarcă CMCD
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <ul className="mb-5 space-y-2">
+        {reviewDocs.length === 0 && (
+          <li className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+            Aparținătorul nu a încărcat încă acte.
+          </li>
+        )}
+        {reviewDocs.map((d) => (
+          <ReviewRow
+            key={d.id}
+            doc={d}
+            busy={validateM.isPending || corrM.isPending}
+            onValidate={() => validateM.mutate({ document_id: d.id })}
+            onRequestCorrection={(reason) => corrM.mutate({ document_id: d.id, reason })}
+          />
+        ))}
+      </ul>
+
+      <div className="flex flex-wrap gap-3 border-t border-border pt-4">
+        <Button
+          onClick={onIssueCert}
+          disabled={!allValidated || issuingCert || reviewDocs.length === 0}
+          className="bg-brand-navy hover:bg-brand-navy/90"
+        >
+          {issuingCert
+            ? "Se înregistrează în SIIEASC..."
+            : allValidated
+              ? "Înregistrează în SIIEASC și emite certificat"
+              : "Validați toate actele înainte de emitere"}
+        </Button>
+        <CorrectionsDialog onSubmit={onRequestCaseCorrections} />
+      </div>
+      {!allValidated && reviewDocs.length > 0 && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          {reviewDocs.filter((d) => d.validation_status === "VALIDATED").length} /{" "}
+          {reviewDocs.length} validate.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function ReviewRow({
+  doc,
+  busy,
+  onValidate,
+  onRequestCorrection,
+}: {
+  doc: any;
+  busy: boolean;
+  onValidate: () => void;
+  onRequestCorrection: (reason: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+
+  const status = doc.validation_status as string;
+  const isValidated = status === "VALIDATED";
+  const isCorrection = status === "NEEDS_CORRECTION";
+
+  const tone = isValidated
+    ? "border-brand-sage/40 bg-brand-sage/5"
+    : isCorrection
+      ? "border-amber-400/40 bg-amber-50"
+      : "border-border bg-background";
+
+  return (
+    <li className={`rounded-lg border p-3 transition ${tone}`}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          {isValidated ? (
+            <CheckCircle2 className="size-5 text-brand-sage" />
+          ) : isCorrection ? (
+            <AlertTriangle className="size-5 text-amber-600" />
+          ) : (
+            <Circle className="size-5 text-muted-foreground" />
+          )}
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium">{doc.title || DOC_TYPE_LABELS[doc.type]}</p>
+            <p className="text-xs text-muted-foreground">
+              {DOC_TYPE_LABELS[doc.type]} • {formatDateTimeRo(doc.issued_at)} •{" "}
+              {VALIDATION_LABEL[status] ?? status}
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="ghost" onClick={() => downloadDoc(doc.id)} className="gap-1">
+            <Download className="size-4" /> Descarcă
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-2 border-brand-sage text-brand-sage hover:bg-brand-sage/10"
+            onClick={onValidate}
+            disabled={busy || isValidated}
+          >
+            <ShieldCheck className="size-4" />
+            {isValidated ? "Validat ✓" : "Validează"}
+          </Button>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2 border-amber-500 text-amber-700 hover:bg-amber-50"
+                disabled={busy}
+              >
+                <MessageSquareWarning className="size-4" /> Cere lămuriri
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Cere lămuriri pentru {doc.title}</DialogTitle>
+              </DialogHeader>
+              <Textarea
+                placeholder="Ex: scan ilizibil, document expirat, lipsește pagina 2..."
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                rows={4}
+              />
+              <DialogFooter>
+                <Button
+                  onClick={() => {
+                    onRequestCorrection(reason);
+                    setOpen(false);
+                    setReason("");
+                  }}
+                  disabled={reason.trim().length < 3}
+                >
+                  Trimite aparținătorului
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+      {isCorrection && doc.correction_reason && (
+        <p className="mt-2 rounded-md border border-amber-200 bg-white p-2 text-xs text-amber-800">
+          <strong>Motiv lămuriri:</strong> {doc.correction_reason}
+        </p>
+      )}
+    </li>
+  );
+}
+
+async function downloadDoc(id: string) {
+  try {
+    const res = await getDocumentDownloadUrl({ document_id: id });
+    window.open(res.url, "_blank");
+  } catch (e: any) {
+    toast.error(e?.detail ?? e.message ?? "Eroare la descărcare");
+  }
+}
+
 // ===================== Family: documents checklist =====================
 
 const REQUIRED_DOC_TYPES = [
@@ -508,14 +751,45 @@ function FamilyDocumentsChecklist({
   const [uploadOpen, setUploadOpen] = useState(false);
   const [pendingType, setPendingType] = useState<string | null>(null);
 
+  // Latest revision per type — that's what the civil officer will look at.
+  const latestByType = useMemo(() => {
+    const map = new Map<string, any>();
+    for (const d of [...(documents ?? [])].sort(
+      (a, b) => new Date(b.issued_at).getTime() - new Date(a.issued_at).getTime(),
+    )) {
+      if (!map.has(d.type)) map.set(d.type, d);
+    }
+    return map;
+  }, [documents]);
+
   const uploadedTypes = useMemo(
-    () => new Set<string>((documents ?? []).map((d) => d.type)),
-    [documents],
+    () => new Set<string>(Array.from(latestByType.keys())),
+    [latestByType],
   );
 
-  const requiredOk = REQUIRED_DOC_TYPES.every((d) => uploadedTypes.has(d.type));
-  const marriageOk = !marriageApplicable || uploadedTypes.has("marriage_certificate");
+  const isReady = (type: string) => {
+    const d = latestByType.get(type);
+    return !!d && d.validation_status !== "NEEDS_CORRECTION";
+  };
+
+  const requiredOk = REQUIRED_DOC_TYPES.every((d) => isReady(d.type));
+  const marriageOk = !marriageApplicable || isReady("marriage_certificate");
   const allReady = requiredOk && marriageOk;
+
+  // If the family came back here because the officer asked for clarifications,
+  // pre-tick the marriage checkbox so the row stays visible and editable.
+  if (
+    !marriageApplicable &&
+    latestByType.has("marriage_certificate") &&
+    latestByType.get("marriage_certificate").validation_status === "NEEDS_CORRECTION"
+  ) {
+    // Note: setting state during render is fine here because we guard it.
+    setTimeout(() => setMarriageApplicable(true), 0);
+  }
+
+  const correctionDocs = Array.from(latestByType.values()).filter(
+    (d) => d.validation_status === "NEEDS_CORRECTION",
+  );
 
   const submitM = useMutation({
     mutationFn: submitFamilyDocuments,
@@ -537,91 +811,147 @@ function FamilyDocumentsChecklist({
         <FileText className="size-5 text-brand-navy" />
         <h2 className="font-display text-lg font-semibold">Încărcare acte aparținător</h2>
       </div>
-      <p className="mb-5 text-sm text-muted-foreground">
+      <p className="mb-3 text-sm text-muted-foreground">
         CMCD-ul a fost emis de medic. Încărcați actele necesare; bifa apare automat când documentul
         este în seif. După ce toate actele obligatorii sunt încărcate, confirmați pentru a notifica
         funcționarul de stare civilă.
       </p>
 
+      {correctionDocs.length > 0 && (
+        <div className="mb-5 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <div className="mb-1 flex items-center gap-2 font-medium">
+            <AlertTriangle className="size-4" /> Funcționarul a cerut lămuriri pe{" "}
+            {correctionDocs.length} document{correctionDocs.length > 1 ? "e" : ""}.
+          </div>
+          <ul className="list-disc space-y-1 pl-5 text-xs">
+            {correctionDocs.map((d: any) => (
+              <li key={d.id}>
+                <strong>{DOC_TYPE_LABELS[d.type] ?? d.type}:</strong> {d.correction_reason}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs">
+            Re-încărcați documentele de mai jos cu varianta corectă, apoi confirmați din nou.
+          </p>
+        </div>
+      )}
+
       <ul className="mb-4 space-y-2">
         {REQUIRED_DOC_TYPES.map((d) => {
-          const done = uploadedTypes.has(d.type);
+          const latest = latestByType.get(d.type);
+          const uploaded = !!latest;
+          const ready = isReady(d.type);
+          const correction = latest?.validation_status === "NEEDS_CORRECTION";
+          const tone = correction
+            ? "border-amber-400/60 bg-amber-50"
+            : ready
+              ? "border-brand-sage/40 bg-brand-sage/5"
+              : "border-border bg-background";
           return (
             <li
               key={d.type}
-              className={`flex items-center justify-between gap-3 rounded-lg border p-3 transition ${
-                done ? "border-brand-sage/40 bg-brand-sage/5" : "border-border bg-background"
-              }`}
+              className={`flex flex-col gap-2 rounded-lg border p-3 transition ${tone}`}
             >
-              <div className="flex items-center gap-3">
-                {done ? (
-                  <CheckCircle2 className="size-5 text-brand-sage" aria-hidden />
-                ) : (
-                  <Circle className="size-5 text-muted-foreground" aria-hidden />
-                )}
-                <div>
-                  <p className="text-sm font-medium">{d.label}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {done ? "Document încărcat" : "Document obligatoriu — încă neîncărcat"}
-                  </p>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  {ready ? (
+                    <CheckCircle2 className="size-5 text-brand-sage" aria-hidden />
+                  ) : correction ? (
+                    <AlertTriangle className="size-5 text-amber-600" aria-hidden />
+                  ) : (
+                    <Circle className="size-5 text-muted-foreground" aria-hidden />
+                  )}
+                  <div>
+                    <p className="text-sm font-medium">{d.label}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {correction
+                        ? "Lămuriri cerute — re-încărcați documentul"
+                        : ready
+                          ? "Document încărcat"
+                          : uploaded
+                            ? "Document încărcat (în așteptare)"
+                            : "Document obligatoriu — încă neîncărcat"}
+                    </p>
+                  </div>
                 </div>
+                {(!uploaded || correction) && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => openUpload(d.type)}
+                    className="gap-2"
+                  >
+                    <Upload className="size-4" /> {correction ? "Re-încarcă" : "Încarcă"}
+                  </Button>
+                )}
               </div>
-              {!done && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => openUpload(d.type)}
-                  className="gap-2"
-                >
-                  <Upload className="size-4" /> Încarcă
-                </Button>
+              {correction && latest?.correction_reason && (
+                <p className="ml-8 rounded-md border border-amber-200 bg-white p-2 text-xs text-amber-800">
+                  <strong>Motiv:</strong> {latest.correction_reason}
+                </p>
               )}
             </li>
           );
         })}
 
-        <li
-          className={`flex items-center justify-between gap-3 rounded-lg border p-3 transition ${
-            uploadedTypes.has("marriage_certificate")
+        {(() => {
+          const latest = latestByType.get("marriage_certificate");
+          const uploaded = !!latest;
+          const ready = isReady("marriage_certificate");
+          const correction = latest?.validation_status === "NEEDS_CORRECTION";
+          const tone = correction
+            ? "border-amber-400/60 bg-amber-50"
+            : uploaded && ready
               ? "border-brand-sage/40 bg-brand-sage/5"
-              : "border-border bg-background"
-          }`}
-        >
-          <div className="flex items-start gap-3">
-            <div className="pt-0.5">
-              <Checkbox
-                id="marriage-applicable"
-                checked={marriageApplicable}
-                onCheckedChange={(v) => setMarriageApplicable(!!v)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="marriage-applicable" className="text-sm font-medium">
-                Decedatul era căsătorit (necesită certificat de căsătorie)
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                {uploadedTypes.has("marriage_certificate")
-                  ? "Certificat de căsătorie încărcat"
-                  : marriageApplicable
-                    ? "Document obligatoriu — încă neîncărcat"
-                    : "Nu este necesar dacă persoana decedată nu era căsătorită"}
-              </p>
-            </div>
-          </div>
-          {marriageApplicable && !uploadedTypes.has("marriage_certificate") && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => openUpload("marriage_certificate")}
-              className="gap-2"
-            >
-              <Upload className="size-4" /> Încarcă
-            </Button>
-          )}
-          {uploadedTypes.has("marriage_certificate") && (
-            <CheckCircle2 className="size-5 text-brand-sage" aria-hidden />
-          )}
-        </li>
+              : "border-border bg-background";
+          return (
+            <li className={`flex flex-col gap-2 rounded-lg border p-3 transition ${tone}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="pt-0.5">
+                    <Checkbox
+                      id="marriage-applicable"
+                      checked={marriageApplicable}
+                      onCheckedChange={(v) => setMarriageApplicable(!!v)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="marriage-applicable" className="text-sm font-medium">
+                      Decedatul era căsătorit (necesită certificat de căsătorie)
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      {correction
+                        ? "Lămuriri cerute — re-încărcați documentul"
+                        : ready
+                          ? "Certificat de căsătorie încărcat"
+                          : marriageApplicable
+                            ? "Document obligatoriu — încă neîncărcat"
+                            : "Nu este necesar dacă persoana decedată nu era căsătorită"}
+                    </p>
+                  </div>
+                </div>
+                {marriageApplicable && (!uploaded || correction) && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => openUpload("marriage_certificate")}
+                    className="gap-2"
+                  >
+                    <Upload className="size-4" /> {correction ? "Re-încarcă" : "Încarcă"}
+                  </Button>
+                )}
+                {uploaded && ready && (
+                  <CheckCircle2 className="size-5 text-brand-sage" aria-hidden />
+                )}
+              </div>
+              {correction && latest?.correction_reason && (
+                <p className="ml-8 rounded-md border border-amber-200 bg-white p-2 text-xs text-amber-800">
+                  <strong>Motiv:</strong> {latest.correction_reason}
+                </p>
+              )}
+            </li>
+          );
+        })()}
       </ul>
 
       <div className="flex flex-wrap items-center gap-3">
@@ -907,15 +1237,6 @@ function DocumentVault({ docs, caseId }: { docs: any[]; caseId: string }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
 
-  const handleDownload = async (id: string) => {
-    try {
-      const res = await getDocumentDownloadUrl({ document_id: id });
-      window.open(res.url, "_blank");
-    } catch (e: any) {
-      toast.error(e?.detail ?? e.message ?? "Eroare la descărcare");
-    }
-  };
-
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
       <div className="flex items-center justify-between border-b border-border bg-muted/30 px-6 py-4">
@@ -932,40 +1253,68 @@ function DocumentVault({ docs, caseId }: { docs: any[]; caseId: string }) {
         {docs.length === 0 && (
           <p className="p-6 text-sm text-muted-foreground">Niciun document încă.</p>
         )}
-        {docs.map((d) => (
-          <div key={d.id} className="flex items-center justify-between gap-4 p-4">
-            <div className="flex items-center gap-4">
-              <div className="flex size-10 items-center justify-center rounded bg-brand-navy/5">
-                <FileText className="size-5 text-brand-navy" />
+        {docs.map((d) => {
+          const isAutoGen = d.auto_generated;
+          const status = d.validation_status as string | undefined;
+          const isValidated = status === "VALIDATED";
+          const isCorrection = status === "NEEDS_CORRECTION";
+          return (
+            <div key={d.id} className="flex flex-col gap-2 p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex size-10 items-center justify-center rounded bg-brand-navy/5">
+                    <FileText className="size-5 text-brand-navy" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">
+                      {d.title || DOC_TYPE_LABELS[d.type]}
+                      {isAutoGen && (
+                        <Badge
+                          className="ml-2 bg-brand-navy/10 text-brand-navy"
+                          variant="secondary"
+                        >
+                          generat automat
+                        </Badge>
+                      )}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {DOC_TYPE_LABELS[d.type]} • {formatDateTimeRo(d.issued_at)}
+                      {d.signed && " • Semnat"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {isValidated && (
+                    <Badge variant="outline" className="border-brand-sage text-brand-sage">
+                      Validat
+                    </Badge>
+                  )}
+                  {isCorrection && (
+                    <Badge variant="outline" className="border-amber-500 text-amber-700">
+                      Lămuriri cerute
+                    </Badge>
+                  )}
+                  {d.storage_path && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      aria-label={`Descarcă ${d.title || DOC_TYPE_LABELS[d.type]}`}
+                      onClick={() => downloadDoc(d.id)}
+                      className="gap-1"
+                    >
+                      <Download className="size-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium">{d.title || DOC_TYPE_LABELS[d.type]}</p>
-                <p className="text-xs text-muted-foreground">
-                  {DOC_TYPE_LABELS[d.type]} • {formatDateTimeRo(d.issued_at)}
-                  {d.signed && " • Semnat"}
+              {isCorrection && d.correction_reason && (
+                <p className="ml-14 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+                  <strong>Motiv lămuriri:</strong> {d.correction_reason}
                 </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {d.signed && (
-                <Badge variant="outline" className="text-brand-sage">
-                  Validat
-                </Badge>
-              )}
-              {d.storage_path && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  aria-label={`Descarcă ${d.title || DOC_TYPE_LABELS[d.type]}`}
-                  onClick={() => handleDownload(d.id)}
-                  className="gap-1"
-                >
-                  <Download className="size-4" />
-                </Button>
               )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       {/* Hidden file input retained to keep ref shape stable for tests/automation. */}
       <input ref={fileRef} type="file" hidden />

@@ -72,6 +72,8 @@ export interface ApiCaseTask {
   status: "todo" | "done" | "in_progress";
 }
 
+export type ApiDocumentValidationStatus = "PENDING" | "VALIDATED" | "NEEDS_CORRECTION";
+
 export interface ApiDocument {
   id: string;
   type: string;
@@ -79,6 +81,12 @@ export interface ApiDocument {
   storage_path?: string;
   signed: boolean;
   issued_at: string;
+  validation_status: ApiDocumentValidationStatus;
+  validated_at?: string;
+  validated_by?: string;
+  correction_reason?: string;
+  correction_requested_at?: string;
+  auto_generated?: boolean;
 }
 
 export async function listMyCases() {
