@@ -11,10 +11,13 @@ import ro.exitusro.backend.cases.dto.SelectFuneralProviderRequest;
 import ro.exitusro.backend.cases.dto.SubmitDocumentsRequest;
 import ro.exitusro.backend.documents.DocumentEntity;
 import ro.exitusro.backend.documents.DocumentRepository;
+import ro.exitusro.backend.documents.DocumentStorage;
+import ro.exitusro.backend.documents.PdfGenerator;
 import ro.exitusro.backend.notifications.NotificationService;
 import ro.exitusro.backend.user.Role;
 import ro.exitusro.backend.user.UserAccount;
 
+import java.io.IOException;
 import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.time.Year;
@@ -26,6 +29,7 @@ import java.util.stream.Collectors;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.FORBIDDEN;
+import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @Service
@@ -38,17 +42,31 @@ public class CaseService {
             "id_card_declarant"
     );
 
+    /** Documents the civil officer must validate before emitting the death certificate. */
+    private static final Set<String> FAMILY_DOC_TYPES = Set.of(
+            "id_card_deceased",
+            "birth_certificate",
+            "marriage_certificate",
+            "id_card_declarant"
+    );
+
     private final CaseRepository repository;
     private final DocumentRepository documents;
+    private final DocumentStorage storage;
+    private final PdfGenerator pdfGenerator;
     private final NotificationService notifications;
     private final AtomicInteger sequence = new AtomicInteger(0);
     private final SecureRandom random = new SecureRandom();
 
     public CaseService(CaseRepository repository,
                        DocumentRepository documents,
+                       DocumentStorage storage,
+                       PdfGenerator pdfGenerator,
                        NotificationService notifications) {
         this.repository = repository;
         this.documents = documents;
+        this.storage = storage;
+        this.pdfGenerator = pdfGenerator;
         this.notifications = notifications;
         // Initialise sequence from existing data so case numbers remain monotonic across restarts.
         long existing = repository.count();
@@ -113,14 +131,24 @@ public class CaseService {
         c.setStatus(CaseStatus.CMCD_ISSUED);
         c.addAudit("CMCD emis de medic — cauză: " + req.causeMain(), actor);
 
-        // Only the family is notified at this point — the civil officer is notified
-        // after the family confirms the supporting documents are uploaded.
+        // Auto-generate the CMCD PDF and add it to the seif so the civil officer
+        // can download it later. The doctor's electronic signature is mocked.
+        attachGeneratedPdf(
+                c,
+                "cmcd",
+                "CMCD - " + c.getDeceasedFullName(),
+                pdfGenerator.cmcd(c, actor),
+                /* signed = */ true,
+                /* autoValidated = */ true,
+                actor
+        );
+
         notifications.push(Role.FAMILY,
                 "CMCD a fost emis",
                 "Medicul a emis Certificatul Medical pentru dosarul " + c.getCaseNumber() +
-                        ". Încărcați actele necesare (CI/BI decedat, certificat naștere, " +
-                        "certificat căsătorie dacă e cazul, CI declarant) și apoi confirmați " +
-                        "pentru a notifica funcționarul de stare civilă.",
+                        ". Documentul este disponibil în seif. Încărcați acum actele necesare " +
+                        "(CI/BI decedat, certificat naștere, certificat căsătorie dacă e cazul, " +
+                        "CI declarant) și apoi confirmați pentru a notifica funcționarul de stare civilă.",
                 "cmcd_issued", c);
         return c;
     }
@@ -164,11 +192,11 @@ public class CaseService {
         notifications.push(Role.CIVIL_OFFICER,
                 "Dosar nou de înregistrat în SIIEASC",
                 "Dosarul " + c.getCaseNumber() + " (" + c.getDeceasedFullName() +
-                        ") are CMCD-ul și actele aparținătorului încărcate. Validați și înregistrați decesul.",
+                        ") are CMCD-ul și actele aparținătorului încărcate. Verificați și validați fiecare document înainte de emiterea certificatului.",
                 "civil_pending", c);
         notifications.push(Role.FAMILY,
                 "Acte trimise la Starea Civilă",
-                "Funcționarul de stare civilă a fost notificat și va emite certificatul de deces.",
+                "Funcționarul de stare civilă a fost notificat și va verifica documentele înainte de emiterea certificatului.",
                 "family_docs_submitted", c);
         return c;
     }
@@ -182,14 +210,44 @@ public class CaseService {
         if (c.getStatus() != CaseStatus.CMCD_ISSUED && c.getStatus() != CaseStatus.AWAITING_CIVIL_OFFICER) {
             throw new ResponseStatusException(CONFLICT, "Case is not ready for certificate issuance (current status: " + c.getStatus() + ")");
         }
+
+        // Every family-uploaded document must be marked VALIDATED before SIIEASC can mint the certificate.
+        // Every family-uploaded document type must have its latest revision
+        // marked VALIDATED before SIIEASC can mint the certificate. Older
+        // revisions (NEEDS_CORRECTION etc.) stay in the audit trail but don't block.
+        List<DocumentEntity> docs = documents.findByCaseEntityOrderByIssuedAtDesc(c);
+        java.util.Map<String, DocumentEntity> latestByType = new java.util.HashMap<>();
+        for (DocumentEntity d : docs) {
+            latestByType.putIfAbsent(d.getType(), d); // ordered DESC → first seen is latest
+        }
+        for (DocumentEntity d : latestByType.values()) {
+            if (!FAMILY_DOC_TYPES.contains(d.getType())) continue;
+            if (d.getValidationStatus() != DocumentEntity.ValidationStatus.VALIDATED) {
+                throw new ResponseStatusException(BAD_REQUEST,
+                        "Document nevalidat: " + humanDocLabel(d.getType()) +
+                                ". Validați fiecare document înainte de emiterea certificatului.");
+            }
+        }
+
         String certNumber = generateCertificateNumber();
         c.setCertificate(certNumber, actor);
         c.setStatus(CaseStatus.DEATH_CERT_ISSUED);
         c.addAudit("Certificat de deces " + certNumber + " emis de Starea Civilă", actor);
 
+        // Auto-generate the death certificate PDF and add it to the seif.
+        attachGeneratedPdf(
+                c,
+                "death_certificate",
+                "Certificat de deces " + certNumber,
+                pdfGenerator.deathCertificate(c, actor),
+                /* signed = */ true,
+                /* autoValidated = */ true,
+                actor
+        );
+
         notifications.push(Role.FAMILY,
                 "Certificat de deces emis",
-                "Certificatul " + certNumber + " este disponibil în dosarul " + c.getCaseNumber() +
+                "Certificatul " + certNumber + " este disponibil în seiful dosarului " + c.getCaseNumber() +
                         ". Puteți căuta și alege o casă funerară.",
                 "death_cert", c);
         return c;
@@ -248,6 +306,7 @@ public class CaseService {
         return c;
     }
 
+
     @Transactional
     public CaseEntity scheduleFuneral(String caseId, ScheduleFuneralRequest req, UserAccount actor) {
         if (actor.getRole() != Role.FUNERAL_PROVIDER && actor.getRole() != Role.ADMIN) {
@@ -300,6 +359,32 @@ public class CaseService {
         return c;
     }
 
+    private void attachGeneratedPdf(CaseEntity c,
+                                    String docType,
+                                    String title,
+                                    byte[] pdfBytes,
+                                    boolean signed,
+                                    boolean autoValidated,
+                                    UserAccount actor) {
+        try {
+            DocumentStorage.Stored stored = storage.storeBytes(pdfBytes, c.getId(), ".pdf", "application/pdf");
+            DocumentEntity doc = new DocumentEntity(c, docType, title);
+            doc.setStoragePath(stored.path());
+            doc.setMimeType(stored.mimeType());
+            doc.setSizeBytes(stored.size());
+            doc.setSigned(signed);
+            // System-generated artefacts are intentionally left without uploadedBy
+            // so we can distinguish them in the UI ("auto_generated").
+            if (autoValidated) {
+                doc.markValidated(actor);
+            }
+            documents.save(doc);
+            c.addAudit("Document generat automat: " + title, actor);
+        } catch (IOException e) {
+            throw new ResponseStatusException(INTERNAL_SERVER_ERROR, "Eroare la generarea PDF-ului: " + e.getMessage(), e);
+        }
+    }
+
     private String nextCaseNumber() {
         int n = sequence.incrementAndGet();
         return String.format("DEMO-%d-%04d", LocalDate.now().getYear(), n);
@@ -317,6 +402,8 @@ public class CaseService {
             case "birth_certificate" -> "Certificat de naștere decedat";
             case "marriage_certificate" -> "Certificat de căsătorie";
             case "id_card_declarant" -> "CI declarant";
+            case "cmcd" -> "CMCD";
+            case "death_certificate" -> "Certificat de deces";
             default -> type;
         };
     }
