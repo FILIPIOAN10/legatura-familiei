@@ -1,13 +1,14 @@
 import { createFileRoute, Link, useNavigate, redirect } from "@tanstack/react-router";
 import { useState } from "react";
-import { isAuthenticated, type ApiError } from "@/lib/api";
+import { api, isAuthenticated, type ApiError } from "@/lib/api";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { toast } from "sonner";
-import { AlertCircle, UserPlus } from "lucide-react";
+import { AlertCircle, UserPlus, ShieldCheck, ArrowLeft } from "lucide-react";
 
 interface AuthError {
   title: string;
@@ -30,22 +31,19 @@ function parseError(err: unknown): AuthError {
   if (e?.status === 429 || /rate|too many/i.test(detail)) {
     return {
       title: "Prea multe încercări",
-      message:
-        "Ați încercat de prea multe ori. Așteptați câteva minute înainte de a încerca din nou.",
+      message: "Ați încercat de prea multe ori. Așteptați câteva minute înainte de a încerca din nou.",
     };
   }
   if (typeof navigator !== "undefined" && !navigator.onLine) {
     return {
       title: "Problemă de conexiune",
-      message:
-        "Nu s-a putut conecta la server. Verificați conexiunea la internet și încercați din nou.",
+      message: "Nu s-a putut conecta la server. Verificați conexiunea la internet și încercați din nou.",
     };
   }
   if (e?.status === 0 || /network|fetch|failed to fetch/i.test(detail)) {
     return {
       title: "Serverul nu răspunde",
-      message:
-        "Nu se poate conecta la backend. Verificați că serverul rulează pe portul 8000.",
+      message: "Nu se poate conecta la backend. Verificați că serverul rulează pe portul 8000.",
     };
   }
   return {
@@ -69,27 +67,117 @@ export const Route = createFileRoute("/auth/login")({
 });
 
 function Login() {
-  const [email, setEmail] = useState("admin@exitusro.ro");
-  const [password, setPassword] = useState("password123");
+  const [step, setStep] = useState<"credentials" | "totp">("credentials");
+  const [email, setEmail] = useState("test123@exitusro.ro");
+  const [password, setPassword] = useState("Bayern2019?");
+  const [partialToken, setPartialToken] = useState("");
+  const [totpCode, setTotpCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<AuthError | null>(null);
   const auth = useAuth();
   const nav = useNavigate();
 
-  const submit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
+  const submitCredentials = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     setBusy(true);
     try {
-      await auth.signIn(email, password);
-      toast.success("Autentificare reușită");
-      nav({ to: "/cases" });
+      const result = await auth.signIn(email, password);
+      if (result.type === "requires_2fa") {
+        setPartialToken(result.partial_token);
+        setStep("totp");
+      } else {
+        toast.success("Autentificare reușită");
+        nav({ to: "/cases" });
+      }
     } catch (err) {
       setError(parseError(err));
     } finally {
       setBusy(false);
     }
   };
+
+  const submitTotp = async (e: React.SyntheticEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (totpCode.length !== 6) return;
+    setError(null);
+    setBusy(true);
+    try {
+      await api.verifyTotp(partialToken, totpCode);
+      await auth.refresh();
+      toast.success("Autentificare reușită");
+      nav({ to: "/cases" });
+    } catch {
+      setError({
+        title: "Cod incorect",
+        message: "Codul introdus este incorect sau a expirat. Verificați aplicația de autentificare.",
+      });
+      setTotpCode("");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (step === "totp") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-brand-muted px-4 py-8">
+        <div className="w-full max-w-sm rounded-xl border border-border bg-card p-8 shadow-sm">
+          <div className="mb-6 flex items-center gap-3">
+            <ShieldCheck className="size-6 text-brand-navy" />
+            <span className="font-display text-xl font-bold text-brand-navy">ExitusRO</span>
+          </div>
+          <h1 className="font-display text-2xl font-bold">Verificare în doi pași</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Introduceți codul de 6 cifre din aplicația dvs. de autentificare.
+          </p>
+
+          {error && (
+            <Alert variant="destructive" className="mt-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>{error.title}</AlertTitle>
+              <AlertDescription>{error.message}</AlertDescription>
+            </Alert>
+          )}
+
+          <form onSubmit={submitTotp} className="mt-6 space-y-6">
+            <div className="flex flex-col items-center gap-3">
+              <InputOTP
+                maxLength={6}
+                value={totpCode}
+                onChange={(v) => setTotpCode(v)}
+                disabled={busy}
+              >
+                <InputOTPGroup>
+                  <InputOTPSlot index={0} />
+                  <InputOTPSlot index={1} />
+                  <InputOTPSlot index={2} />
+                  <InputOTPSlot index={3} />
+                  <InputOTPSlot index={4} />
+                  <InputOTPSlot index={5} />
+                </InputOTPGroup>
+              </InputOTP>
+              <p className="text-xs text-muted-foreground">Codul se reîmprospătează la fiecare 30 s</p>
+            </div>
+            <Button
+              type="submit"
+              disabled={busy || totpCode.length !== 6}
+              className="w-full bg-brand-navy hover:bg-brand-navy/90"
+            >
+              {busy ? "Se verifică..." : "Verifică codul"}
+            </Button>
+          </form>
+
+          <button
+            type="button"
+            onClick={() => { setStep("credentials"); setError(null); setTotpCode(""); }}
+            className="mt-4 flex items-center gap-1 text-sm text-muted-foreground hover:text-brand-navy"
+          >
+            <ArrowLeft className="size-3.5" /> Înapoi
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-brand-muted px-4 py-8">
@@ -120,7 +208,7 @@ function Login() {
           </Alert>
         )}
 
-        <form onSubmit={submit} className="mt-6 space-y-4">
+        <form onSubmit={submitCredentials} className="mt-6 space-y-4">
           <div>
             <Label htmlFor="login-email">Email</Label>
             <Input

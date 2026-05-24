@@ -51,6 +51,10 @@ export interface ApiError {
   detail: string;
 }
 
+export type LoginResult =
+  | { type: "ok"; user: ApiUser }
+  | { type: "requires_2fa"; partial_token: string };
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const token = getStoredToken();
   const hasBody = options?.body != null;
@@ -82,10 +86,23 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export const api = {
   baseUrl: API_BASE_URL,
 
-  login: async (payload: LoginPayload): Promise<ApiUser> => {
-    const data = await request<{ access_token: string; token_type: string }>("/auth/login", {
+  login: async (payload: LoginPayload): Promise<LoginResult> => {
+    const data = await request<{ access_token?: string; partial_token?: string; token_type: string }>("/auth/login", {
       method: "POST",
       body: JSON.stringify(payload),
+    });
+    if (data.partial_token && !data.access_token) {
+      return { type: "requires_2fa", partial_token: data.partial_token };
+    }
+    setStoredToken(data.access_token!);
+    const user = await request<ApiUser>("/auth/me");
+    return { type: "ok", user };
+  },
+
+  verifyTotp: async (partial_token: string, code: string): Promise<ApiUser> => {
+    const data = await request<{ access_token: string; token_type: string }>("/auth/verify-totp", {
+      method: "POST",
+      body: JSON.stringify({ partial_token, code }),
     });
     setStoredToken(data.access_token);
     return request<ApiUser>("/auth/me");
@@ -102,6 +119,15 @@ export const api = {
   },
 
   me: () => request<ApiUser>("/auth/me"),
+
+  setup2fa: () =>
+    request<{ secret: string; uri: string }>("/auth/2fa/setup", { method: "POST" }),
+
+  enable2fa: (code: string) =>
+    request<void>("/auth/2fa/enable", { method: "POST", body: JSON.stringify({ code }) }),
+
+  disable2fa: (code: string) =>
+    request<void>("/auth/2fa/disable", { method: "POST", body: JSON.stringify({ code }) }),
 
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, body: unknown) =>

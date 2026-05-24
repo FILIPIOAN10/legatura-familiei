@@ -50,6 +50,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-navy/10 text-xs font-semibold text-brand-navy">
                 {initials}
               </div>
+              <Link to="/settings">
+                <Button variant="outline" size="sm">Setări</Button>
+              </Link>
               <Button variant="outline" size="sm" onClick={signOut}>
                 Ieșire
               </Button>
