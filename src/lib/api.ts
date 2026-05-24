@@ -1,5 +1,4 @@
-const API_BASE_URL =
-  (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:8000";
+const API_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? "/api";
 
 const TOKEN_KEY = "exitusro_token";
 

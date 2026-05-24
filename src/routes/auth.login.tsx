@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { toast } from "sonner";
 import { AlertCircle, UserPlus, Check, Mail, KeyRound, ArrowRight } from "lucide-react";
 
@@ -67,26 +66,20 @@ export const Route = createFileRoute("/auth/login")({
 });
 
 function Login() {
-  const [step, setStep] = useState<"credentials" | "totp">("credentials");
-  const [email, setEmail] = useState("test123@exitusro.ro");
-  const [password, setPassword] = useState("Bayern2019?");
-  const [partialToken, setPartialToken] = useState("");
-  const [totpCode, setTotpCode] = useState("");
+  const [email, setEmail] = useState("test@example.com");
+  const [password, setPassword] = useState("password123");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<AuthError | null>(null);
   const auth = useAuth();
   const nav = useNavigate();
 
-  const submitCredentials = async (e: React.SyntheticEvent<HTMLFormElement>) => {
+  const submit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     setBusy(true);
     try {
       const result = await auth.signIn(email, password);
-      if (result.type === "requires_2fa") {
-        setPartialToken(result.partial_token);
-        setStep("totp");
-      } else {
+      if (result.type === "ok") {
         toast.success("Autentificare reușită");
         nav({ to: "/cases" });
       }

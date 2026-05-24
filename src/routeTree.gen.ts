@@ -17,6 +17,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthSignupRouteImport } from './routes/auth.signup'
 import { Route as AuthResetPasswordRouteImport } from './routes/auth.reset-password'
 import { Route as AuthLoginRouteImport } from './routes/auth.login'
+import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
 import { Route as AppInboxRouteImport } from './routes/_app.inbox'
 import { Route as AppCasesIndexRouteImport } from './routes/_app.cases.index'
@@ -62,6 +63,11 @@ const AuthLoginRoute = AuthLoginRouteImport.update({
   path: '/auth/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppNotificationsRoute = AppNotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
@@ -95,6 +101,7 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/inbox': typeof AppInboxRoute
   '/notifications': typeof AppNotificationsRoute
+  '/settings': typeof AppSettingsRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/signup': typeof AuthSignupRoute
@@ -109,6 +116,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/inbox': typeof AppInboxRoute
   '/notifications': typeof AppNotificationsRoute
+  '/settings': typeof AppSettingsRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/signup': typeof AuthSignupRoute
@@ -125,6 +133,7 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_app/inbox': typeof AppInboxRoute
   '/_app/notifications': typeof AppNotificationsRoute
+  '/_app/settings': typeof AppSettingsRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/signup': typeof AuthSignupRoute
@@ -141,6 +150,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/inbox'
     | '/notifications'
+    | '/settings'
     | '/auth/login'
     | '/auth/reset-password'
     | '/auth/signup'
@@ -155,6 +165,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/inbox'
     | '/notifications'
+    | '/settings'
     | '/auth/login'
     | '/auth/reset-password'
     | '/auth/signup'
@@ -170,6 +181,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/_app/inbox'
     | '/_app/notifications'
+    | '/_app/settings'
     | '/auth/login'
     | '/auth/reset-password'
     | '/auth/signup'
@@ -247,6 +259,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/notifications': {
       id: '/_app/notifications'
       path: '/notifications'
@@ -288,6 +307,7 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppInboxRoute: typeof AppInboxRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
+  AppSettingsRoute: typeof AppSettingsRoute
   AppCasesCaseIdRoute: typeof AppCasesCaseIdRoute
   AppCasesNewRoute: typeof AppCasesNewRoute
   AppCasesIndexRoute: typeof AppCasesIndexRoute
@@ -296,6 +316,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppInboxRoute: AppInboxRoute,
   AppNotificationsRoute: AppNotificationsRoute,
+  AppSettingsRoute: AppSettingsRoute,
   AppCasesCaseIdRoute: AppCasesCaseIdRoute,
   AppCasesNewRoute: AppCasesNewRoute,
   AppCasesIndexRoute: AppCasesIndexRoute,
